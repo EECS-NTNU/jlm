@@ -215,6 +215,8 @@ cgencmd::to_str() const
 	  llcpath.to_str() + " "
 	, "-", jlm::to_str(ol_), " "
 	, "-filetype=obj "
+	, "--relocation-model=dynamic-no-pic "
+	, "--thread-model=posix "  // Might not provide any benefits
 	, "-o ", ofile_.to_str()
 	, " /tmp/", create_optcmd_ofile(ifile_.base())
 	);
