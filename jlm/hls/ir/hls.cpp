@@ -8,6 +8,8 @@
 namespace jlm::hls
 {
 
+size_t PointerSizeInBits = 64;
+
 std::shared_ptr<const triggertype>
 triggertype::Create()
 {

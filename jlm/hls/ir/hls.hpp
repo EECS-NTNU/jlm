@@ -1623,5 +1623,7 @@ public:
   }
 };
 
+extern size_t PointerSizeInBits;
+
 }
 #endif // JLM_HLS_IR_HLS_HPP
