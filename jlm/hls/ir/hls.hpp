@@ -115,8 +115,8 @@ public:
     return jlm::rvsdg::simple_node::create_normalized(region, op, { &value });
   }
 
-  bool
-  IsConstant() const
+  [[nodiscard]] bool
+  IsConstant() const noexcept
   {
     return IsConstant_;
   }
