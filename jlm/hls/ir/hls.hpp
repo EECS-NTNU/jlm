@@ -80,8 +80,11 @@ public:
       : jlm::rvsdg::simple_op({ type }, { nalternatives, type })
   {}
 
-  fork_op(size_t nalternatives, const rvsdg::type & type, bool isConstant)
-      : rvsdg::simple_op({ type }, std::vector<rvsdg::port>(nalternatives, type)),
+  fork_op(
+      size_t nalternatives,
+      const std::shared_ptr<const jlm::rvsdg::type> & type,
+      bool isConstant)
+      : rvsdg::simple_op({ type }, { nalternatives, type }),
         IsConstant_(isConstant)
   {}
 
