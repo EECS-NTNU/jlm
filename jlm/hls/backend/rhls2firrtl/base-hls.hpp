@@ -40,7 +40,7 @@ public:
   [[nodiscard]] static size_t
   GetPointerSizeInBits()
   {
-    return 64;
+    return 16;
   }
 
 private:

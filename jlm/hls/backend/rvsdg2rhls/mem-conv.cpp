@@ -448,7 +448,7 @@ TracePointer(
  * @return True if the output is a function pointer
  */
 bool
-IsDecoupledFunctionPointer(
+jlm::hls::IsDecoupledFunctionPointer(
     jlm::rvsdg::output * output,
     std::unordered_set<jlm::rvsdg::output *> & visited)
 {

@@ -19,6 +19,18 @@ typedef std::vector<std::tuple<
     port_load_store_decouple;
 
 /**
+ * Decoupled loads are user specified and encoded as function calls that need special treatment.
+ * This function traces the output to all nodes and checks if it is the first argument to a call
+ * operation.
+ * @param output The output to perform the trace on.
+ * @param visited The set of visited outputs to avoid visiting the same output multiple times.
+ */
+bool
+IsDecoupledFunctionPointer(
+    jlm::rvsdg::output * output,
+    std::unordered_set<jlm::rvsdg::output *> & visited);
+
+/**
  * Traces all pointer arguments of a lambda node and finds all memory operations.
  * Pointers read from memory is not traced, i.e., the output of load operations is not traced.
  * @param lambda The lambda node for which to trace all pointer arguments
