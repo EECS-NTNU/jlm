@@ -1185,6 +1185,7 @@ public:
     //                }
     std::vector<std::shared_ptr<const jlm::rvsdg::Type>> types;
     types.emplace_back(get_mem_res_type(jlm::rvsdg::bittype::Create(max_width)));
+    types.emplace_back(get_mem_res_type(jlm::rvsdg::bittype::Create(max_width)));
     return types;
   }
 
@@ -1215,6 +1216,7 @@ public:
   static std::vector<jlm::rvsdg::output *>
   create(
       rvsdg::output & result,
+      rvsdg::output & result2,
       const std::vector<std::shared_ptr<const rvsdg::ValueType>> & output_types)
   {
     auto region = result.region();
@@ -1222,7 +1224,7 @@ public:
     //                auto result_type = dynamic_cast<const jlm::rvsdg::bittype*>(&result.type());
     //                JLM_ASSERT(result_type && result_type->nbits()==64);
     mem_resp_op op(output_types);
-    return jlm::rvsdg::simple_node::create_normalized(region, op, { &result });
+    return jlm::rvsdg::simple_node::create_normalized(region, op, { &result, &result2 });
   }
 };
 
@@ -1295,6 +1297,8 @@ public:
     //                    max_width = sz>max_width?sz:max_width;
     //                }
     std::vector<std::shared_ptr<const jlm::rvsdg::Type>> types;
+    types.emplace_back(
+        get_mem_req_type(jlm::rvsdg::bittype::Create(max_width), !store_types.empty()));
     types.emplace_back(
         get_mem_req_type(jlm::rvsdg::bittype::Create(max_width), !store_types.empty()));
     return types;

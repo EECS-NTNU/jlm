@@ -9,6 +9,7 @@
 #include <jlm/hls/backend/rvsdg2rhls/add-sinks.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/add-triggers.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/alloca-conv.hpp>
+#include <jlm/hls/backend/rvsdg2rhls/bram-pointers.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/check-rhls.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/dae-conv.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/distribute-constants.hpp>
@@ -431,6 +432,7 @@ rvsdg2rhls(llvm::RvsdgModule & rhls)
   mem_queue(rhls);
   MemoryConverter(rhls);
   memstate_conv(rhls);
+  jlm::hls::bram_pointers(rhls);
   remove_redundant_buf(rhls);
   // enforce 1:1 input output relationship
   add_sinks(rhls);

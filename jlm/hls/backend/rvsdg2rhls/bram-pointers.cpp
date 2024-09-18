@@ -29,7 +29,7 @@ replace_gep(rvsdg::simple_node * simplenode)
 
   rvsdg::output * out = nullptr;
   JLM_ASSERT(op);
-  const rvsdg::type * pointeeType = &op->GetPointeeType();
+  const rvsdg::Type * pointeeType = &op->GetPointeeType();
   for (size_t i = 1; i < simplenode->ninputs(); ++i)
   {
     int bits = jlm::hls::BaseHLS::JlmSize(pointeeType);

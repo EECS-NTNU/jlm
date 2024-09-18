@@ -68,6 +68,7 @@ VerilatorHarnessHLS::get_text(llvm::RvsdgModule & rm)
          "std::vector<std::pair<void *, uint64_t>> ref_allocas;\n"
          "std::vector<mem_access> hls_loads;\n"
          "std::vector<mem_access> hls_stores;\n"
+         "std::vector<uint64_t> base_ptrs;\n"
          "std::map<void*, std::deque<mem_access>> load_map;\n"
          "std::map<void*, std::deque<mem_access>> store_map;\n"
          "\n"
@@ -157,7 +158,7 @@ VerilatorHarnessHLS::get_text(llvm::RvsdgModule & rm)
     {
       cpp << ", ";
     }
-    cpp << "10";
+    cpp << "1";
   }
   cpp << "};\n";
   cpp << "\n"
@@ -303,9 +304,9 @@ VerilatorHarnessHLS::get_text(llvm::RvsdgModule & rm)
            "        mem_resp["
         << i << "]->back().id = top->mem_" << i
         << "_req_data_id;\n"
-           "        void *addr = (void *) top->mem_"
-        << i
-        << "_req_data_addr;\n"
+           "        void *addr = (void *) (top->mem_"
+        << i << "_req_data_addr+base_ptrs[" << (i / 2)
+        << "]);\n"
            "        uint64_t size = top->mem_"
         << i
         << "_req_data_size;\n"
@@ -487,6 +488,11 @@ VerilatorHarnessHLS::get_text(llvm::RvsdgModule & rm)
     {
       continue;
     }
+    else if (dynamic_cast<const llvm::PointerType *>(&ln->type().ArgumentType(i)))
+    {
+      cpp << "    base_ptrs.push_back((uint64_t) a" << i << ");\n";
+      continue;
+    }
     cpp << "    top->i_data_" << i << " = (uint64_t) a" << i << ";\n";
     register_ix++;
   }
@@ -500,6 +506,11 @@ VerilatorHarnessHLS::get_text(llvm::RvsdgModule & rm)
     else
     {
       throw util::error("Unsupported cvarg origin type type");
+    }
+    if (dynamic_cast<const llvm::PointerType *>(&ln->input(i)->type()))
+    {
+      cpp << "    base_ptrs.push_back((uint64_t) &" << name << ");\n";
+      continue;
     }
     cpp << "    top->i_data_" << register_ix++ << " = (uint64_t) &" << name << ";\n";
     cpp << "#ifdef HLS_MEM_DEBUG\n";
@@ -551,6 +562,7 @@ VerilatorHarnessHLS::get_text(llvm::RvsdgModule & rm)
          "    ref_stores.erase(ref_stores.begin(), ref_stores.end());\n"
          "    hls_loads.erase(hls_loads.begin(), hls_loads.end());\n"
          "    hls_stores.erase(hls_stores.begin(), hls_stores.end());\n"
+         "    base_ptrs.erase(base_ptrs.begin(), base_ptrs.end());\n"
          "    mem_access_ctr = 0;\n";
   if (ln->type().NumResults() && !dynamic_cast<const rvsdg::StateType *>(&ln->type().ResultType(0)))
   {

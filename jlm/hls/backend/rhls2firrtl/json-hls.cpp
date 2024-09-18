@@ -58,6 +58,16 @@ JsonHLS::get_text(llvm::RvsdgModule & rm)
     auto has_write = req_bt->get_element_type("write") != nullptr;
     json << "{ \"size\": " << size << ", \"has_write\": " << has_write << "}";
   }
+    json << "],\n";
+    json << "\"bram\": [";
+    for (size_t i = 0; i < mem_reqs.size(); i+=2) {
+        if(i!=0){
+            json << ", ";
+        }
+        auto resp_bt = dynamic_cast<const jlm::hls::bundletype*>(&mem_resps[i]->type());
+        auto size = JlmSize(&*resp_bt->get_element_type("data"));
+        json << "{ \"width\": " << size << ", \"depth\": " << 4096 << "}";
+    }
   json << "]\n";
   json << "}\n";
   return json.str();

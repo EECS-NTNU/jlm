@@ -598,6 +598,7 @@ jlm::hls::MemoryConverter(jlm::llvm::RvsdgModule & rm)
   for (auto & portNode : portNodes)
   {
     newArgumentTypes.push_back(responseTypePtr);
+    newArgumentTypes.push_back(responseTypePtr);
     if (std::get<1>(portNode).empty())
     {
       newResultTypes.push_back(requestTypePtr);
@@ -622,6 +623,7 @@ jlm::hls::MemoryConverter(jlm::llvm::RvsdgModule & rm)
   if (!unknownLoadNodes.empty() || !unknownStoreNodes.empty() || !unknownDecoupledNodes.empty())
   {
     // Extra port for loads/stores not associated to a port yet (i.e., unknown base pointer)
+    newArgumentTypes.push_back(responseTypePtr);
     newArgumentTypes.push_back(responseTypePtr);
     if (unknownStoreNodes.empty())
     {
@@ -675,21 +677,23 @@ jlm::hls::MemoryConverter(jlm::llvm::RvsdgModule & rm)
     auto decoupledNodes = std::get<2>(portNode);
     newResults.push_back(ConnectRequestResponseMemPorts(
         newLambda,
-        newArgumentsIndex++,
+        newArgumentsIndex,
         smap,
         loadNodes,
         storeNodes,
         decoupledNodes));
+    newArgumentsIndex += 2;
   }
   if (!unknownLoadNodes.empty() || !unknownStoreNodes.empty() || !unknownDecoupledNodes.empty())
   {
     newResults.push_back(ConnectRequestResponseMemPorts(
         newLambda,
-        newArgumentsIndex++,
+        newArgumentsIndex,
         smap,
         unknownLoadNodes,
         unknownStoreNodes,
         unknownDecoupledNodes));
+    newArgumentsIndex += 2;
   }
 
   std::vector<jlm::rvsdg::output *> originalResults;
@@ -787,7 +791,7 @@ jlm::hls::ConnectRequestResponseMemPorts(
 
   auto lambdaRegion = lambda->subregion();
 
-  auto loadResponses = mem_resp_op::create(*lambdaRegion->argument(argumentIndex), loadTypes);
+  auto loadResponses = mem_resp_op::create(*lambdaRegion->argument(argumentIndex), *lambdaRegion->argument(argumentIndex+1), loadTypes);
   // The (decoupled) load nodes are replaced so the pointer to the types will become invalid
   loadTypes.clear();
   std::vector<jlm::rvsdg::output *> loadAddresses;
