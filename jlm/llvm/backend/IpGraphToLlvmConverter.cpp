@@ -1612,11 +1612,11 @@ IpGraphToLlvmConverter::ConvertAttributeKind(const attribute::kind & kind)
         { attribute::kind::DisableSanitizerInstrumentation, ak::DisableSanitizerInstrumentation },
         { attribute::kind::FnRetThunkExtern, ak::FnRetThunkExtern },
         { attribute::kind::Hot, ak::Hot },
+        { attribute::kind::HybridPatchable, ak::HybridPatchable },
         { attribute::kind::ImmArg, ak::ImmArg },
         { attribute::kind::InReg, ak::InReg },
         { attribute::kind::InlineHint, ak::InlineHint },
         { attribute::kind::JumpTable, ak::JumpTable },
-        { attribute::kind::Memory, ak::Memory },
         { attribute::kind::MinSize, ak::MinSize },
         { attribute::kind::MustProgress, ak::MustProgress },
         { attribute::kind::Naked, ak::Naked },
@@ -1658,6 +1658,7 @@ IpGraphToLlvmConverter::ConvertAttributeKind(const attribute::kind & kind)
         { attribute::kind::SanitizeHWAddress, ak::SanitizeHWAddress },
         { attribute::kind::SanitizeMemTag, ak::SanitizeMemTag },
         { attribute::kind::SanitizeMemory, ak::SanitizeMemory },
+        { attribute::kind::SanitizeNumericalStability, ak::SanitizeNumericalStability },
         { attribute::kind::SanitizeThread, ak::SanitizeThread },
         { attribute::kind::ShadowCallStack, ak::ShadowCallStack },
         { attribute::kind::SkipProfile, ak::SkipProfile },
@@ -1691,13 +1692,23 @@ IpGraphToLlvmConverter::ConvertAttributeKind(const attribute::kind & kind)
         { attribute::kind::AllocSize, ak::AllocSize },
         { attribute::kind::Dereferenceable, ak::Dereferenceable },
         { attribute::kind::DereferenceableOrNull, ak::DereferenceableOrNull },
+        { attribute::kind::Memory, ak::Memory },
         { attribute::kind::NoFPClass, ak::NoFPClass },
         { attribute::kind::StackAlignment, ak::StackAlignment },
         { attribute::kind::UWTable, ak::UWTable },
         { attribute::kind::VScaleRange, ak::VScaleRange },
         { attribute::kind::LastIntAttr, ak::LastIntAttr },
 
-        { attribute::kind::EndAttrKinds, ak::EndAttrKinds } });
+        { attribute::kind::FirstConstantRangeAttr, ak::FirstConstantRangeAttr },
+        { attribute::kind::Range, ak::Range },
+        { attribute::kind::LastConstantRangeAttr, ak::LastConstantRangeAttr },
+        { attribute::kind::FirstConstantRangeListAttr, ak::FirstConstantRangeListAttr },
+        { attribute::kind::Initializes, ak::Initializes },
+        { attribute::kind::LastConstantRangeListAttr, ak::LastConstantRangeListAttr },
+
+        { attribute::kind::EndAttrKinds, ak::EndAttrKinds },
+        { attribute::kind::EmptyKey, ak::EmptyKey },
+        { attribute::kind::TombstoneKey, ak::TombstoneKey } });
 
   JLM_ASSERT(map.find(kind) != map.end());
   return map[kind];

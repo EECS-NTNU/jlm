@@ -38,11 +38,11 @@ public:
     DisableSanitizerInstrumentation,
     FnRetThunkExtern,
     Hot,
+    HybridPatchable,
     ImmArg,
     InReg,
     InlineHint,
     JumpTable,
-    Memory,
     MinSize,
     MustProgress,
     Naked,
@@ -84,6 +84,7 @@ public:
     SanitizeHWAddress,
     SanitizeMemTag,
     SanitizeMemory,
+    SanitizeNumericalStability,
     SanitizeThread,
     ShadowCallStack,
     SkipProfile,
@@ -117,13 +118,22 @@ public:
     AllocSize,
     Dereferenceable,
     DereferenceableOrNull,
+    Memory,
     NoFPClass,
     StackAlignment,
     UWTable,
     VScaleRange,
     LastIntAttr,
+    FirstConstantRangeAttr,
+    Range,
+    LastConstantRangeAttr,
+    FirstConstantRangeListAttr,
+    Initializes,
+    LastConstantRangeListAttr,
 
-    EndAttrKinds ///< Sentinel value useful for loops
+    EndAttrKinds, ///< Sentinel value useful for loops
+    EmptyKey,
+    TombstoneKey
   };
 
   virtual ~attribute() noexcept;

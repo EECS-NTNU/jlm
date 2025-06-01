@@ -377,7 +377,7 @@ JlcCommandLineParser::ParseCommandLineArguments(int argc, const char * const * a
     invocation of parse_cmdline.
   */
 
-  cl::TopLevelSubCommand->reset();
+  cl::SubCommand::getTopLevel().reset();
 
   cl::opt<bool> onlyPrintCommands(
       "###",
@@ -684,7 +684,7 @@ JlmOptCommandLineParser::ParseCommandLineArguments(int argc, const char * const 
     invocation of parse_cmdline.
   */
 
-  cl::TopLevelSubCommand->reset();
+  cl::SubCommand::getTopLevel().reset();
 
   cl::opt<std::string> inputFile(cl::Positional, cl::desc("<input>"));
 
@@ -973,7 +973,7 @@ JlmHlsCommandLineParser::ParseCommandLineArguments(int argc, const char * const 
     invocation of parse_cmdline.
   */
 
-  cl::TopLevelSubCommand->reset();
+  cl::SubCommand::getTopLevel().reset();
 
   cl::opt<std::string> inputFile(cl::Positional, cl::desc("<input>"));
 
@@ -1043,7 +1043,7 @@ JhlsCommandLineParser::ParseCommandLineArguments(int argc, const char * const * 
     invocation of parse_cmdline.
   */
 
-  cl::TopLevelSubCommand->reset();
+  cl::SubCommand::getTopLevel().reset();
 
   cl::opt<bool> onlyPrintCommands(
       "###",
