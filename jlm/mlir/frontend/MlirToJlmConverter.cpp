@@ -9,7 +9,7 @@
 
 #include <llvm/Support/raw_os_ostream.h>
 #include <mlir/Parser/Parser.h>
-#include <mlir/Transforms/TopologicalSortUtils.h>
+#include <mlir/Analysis/TopologicalSortUtils.h>
 
 #include <jlm/llvm/ir/operators/sext.hpp>
 #include <jlm/rvsdg/bitstring/arithmetic.hpp>
@@ -116,8 +116,8 @@ MlirToJlmConverter::ConvertBlock(::mlir::Block & block, rvsdg::Region & rvsdgReg
           *rvsdgRegion.graph(),
           std::dynamic_pointer_cast<const rvsdg::ValueType>(jlmValueType),
           std::dynamic_pointer_cast<const rvsdg::ValueType>(jlmImportedType),
-          argument.getNameAttr().cast<::mlir::StringAttr>().str(),
-          llvm::FromString(argument.getLinkageAttr().cast<::mlir::StringAttr>().str()));
+          argument.getNameAttr().str(),
+          llvm::FromString(argument.getLinkageAttr().str()));
 
       auto key = argument.getResult().getAsOpaquePointer();
       outputMap[key] = rvsdgRegion.argument(rvsdgRegion.narguments() - 1);
@@ -240,27 +240,27 @@ MlirToJlmConverter::ConvertFPBinaryNode(
   if (auto castedOp = ::mlir::dyn_cast<::mlir::arith::AddFOp>(&mlirOperation))
   {
     op = llvm::fpop::add;
-    size = ConvertFPSize(castedOp.getType().cast<::mlir::FloatType>().getWidth());
+    size = ConvertFPSize(::mlir::cast<::mlir::FloatType>(castedOp.getType()).getWidth());
   }
   else if (auto castedOp = ::mlir::dyn_cast<::mlir::arith::SubFOp>(&mlirOperation))
   {
     op = llvm::fpop::sub;
-    size = ConvertFPSize(castedOp.getType().cast<::mlir::FloatType>().getWidth());
+    size = ConvertFPSize(::mlir::cast<::mlir::FloatType>(castedOp.getType()).getWidth());
   }
   else if (auto castedOp = ::mlir::dyn_cast<::mlir::arith::MulFOp>(&mlirOperation))
   {
     op = llvm::fpop::mul;
-    size = ConvertFPSize(castedOp.getType().cast<::mlir::FloatType>().getWidth());
+    size = ConvertFPSize(::mlir::cast<::mlir::FloatType>(castedOp.getType()).getWidth());
   }
   else if (auto castedOp = ::mlir::dyn_cast<::mlir::arith::DivFOp>(&mlirOperation))
   {
     op = llvm::fpop::div;
-    size = ConvertFPSize(castedOp.getType().cast<::mlir::FloatType>().getWidth());
+    size = ConvertFPSize(::mlir::cast<::mlir::FloatType>(castedOp.getType()).getWidth());
   }
   else if (auto castedOp = ::mlir::dyn_cast<::mlir::arith::RemFOp>(&mlirOperation))
   {
     op = llvm::fpop::mod;
-    size = ConvertFPSize(castedOp.getType().cast<::mlir::FloatType>().getWidth());
+    size = ConvertFPSize(::mlir::cast<::mlir::FloatType>(castedOp.getType()).getWidth());
   }
   else
   {
@@ -290,10 +290,10 @@ MlirToJlmConverter::ConvertBitBinaryNode(
 
   auto type = mlirOperation.getResult(0).getType();
 
-  if (!type.isa<::mlir::IntegerType>())
+  if (!::mlir::isa<::mlir::IntegerType>(type))
     return nullptr;
 
-  auto integerType = type.cast<::mlir::IntegerType>();
+  auto integerType = ::mlir::cast<::mlir::IntegerType>(type);
   auto width = integerType.getWidth();
 
   if (::mlir::isa<::mlir::arith::AddIOp>(mlirOperation))
@@ -430,7 +430,7 @@ MlirToJlmConverter::ConvertOperation(
     if (!::mlir::isa<::mlir::IntegerType>(castedOp.getType()))
       JLM_UNREACHABLE("Expected IntegerType for ExtSIOp operation output.");
     return rvsdg::TryGetOwnerNode<rvsdg::Node>(*llvm::sext_op::create(
-        castedOp.getType().cast<::mlir::IntegerType>().getWidth(),
+        ::mlir::cast<::mlir::IntegerType>(castedOp.getType()).getWidth(),
         inputs[0]));
   }
   else if (auto sitofpOp = ::mlir::dyn_cast<::mlir::arith::SIToFPOp>(&mlirOperation))
@@ -771,8 +771,8 @@ MlirToJlmConverter::ConvertOperation(
     uint64_t defaultAlternative = 0;
     for (auto & attr : mlirMatch.getMapping())
     {
-      JLM_ASSERT(attr.isa<::mlir::rvsdg::MatchRuleAttr>());
-      auto matchRuleAttr = attr.cast<::mlir::rvsdg::MatchRuleAttr>();
+      JLM_ASSERT(::mlir::isa<::mlir::rvsdg::MatchRuleAttr>(attr));
+      auto matchRuleAttr = ::mlir::cast<::mlir::rvsdg::MatchRuleAttr>(attr);
       if (matchRuleAttr.isDefault())
       {
         defaultAlternative = matchRuleAttr.getIndex();

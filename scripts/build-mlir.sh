@@ -10,7 +10,7 @@ JLM_ROOT_DIR="$(realpath "${SCRIPT_DIR}/..")"
 MLIR_BUILD=${JLM_ROOT_DIR}/build-mlir
 MLIR_INSTALL=${JLM_ROOT_DIR}/usr
 
-LLVM_VERSION=18
+LLVM_VERSION=19
 LLVM_CONFIG_BIN=llvm-config-${LLVM_VERSION}
 
 function commit()
@@ -70,6 +70,8 @@ if [ ! -d "$MLIR_GIT_DIR" ] ;
 then
 	git clone ${GIT_REPOSITORY} ${MLIR_GIT_DIR}
 fi
+
+echo "-DMLIR_DIR=${LLVM_CMAKEDIR}/../mlir"
 
 git -C ${MLIR_GIT_DIR} checkout ${GIT_COMMIT}
 cmake -G Ninja \

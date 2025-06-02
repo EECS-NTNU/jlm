@@ -67,15 +67,15 @@ TestIntegerBinaryOperation()
       if (mlirBinaryOp)
       {
         auto inputBitType1 =
-            mlirBinaryOp.getOperand(0).getType().template dyn_cast<::mlir::IntegerType>();
+            ::mlir::dyn_cast<::mlir::IntegerType>(mlirBinaryOp.getOperand(0).getType());
         auto inputBitType2 =
-            mlirBinaryOp.getOperand(1).getType().template dyn_cast<::mlir::IntegerType>();
+            ::mlir::dyn_cast<::mlir::IntegerType>(mlirBinaryOp.getOperand(1).getType());
         assert(inputBitType1);
         assert(inputBitType1.getWidth() == nbits);
         assert(inputBitType2);
         assert(inputBitType2.getWidth() == nbits);
         auto outputBitType =
-            mlirBinaryOp.getResult().getType().template dyn_cast<::mlir::IntegerType>();
+            ::mlir::dyn_cast<::mlir::IntegerType>(mlirBinaryOp.getResult().getType());
         assert(outputBitType);
         assert(outputBitType.getWidth() == nbits);
         opFound = true;
@@ -191,16 +191,16 @@ TestIntegerComparisonOperation(const IntegerComparisonOpTest<JlmOperation> & tes
       if (mlirCompOp)
       {
         auto inputBitType1 =
-            mlirCompOp.getOperand(0).getType().template dyn_cast<::mlir::IntegerType>();
+            ::mlir::dyn_cast<::mlir::IntegerType>(mlirCompOp.getOperand(0).getType());
         auto inputBitType2 =
-            mlirCompOp.getOperand(1).getType().template dyn_cast<::mlir::IntegerType>();
+            ::mlir::dyn_cast<::mlir::IntegerType>(mlirCompOp.getOperand(1).getType());
         assert(inputBitType1);
         assert(inputBitType1.getWidth() == nbits);
         assert(inputBitType2);
         assert(inputBitType2.getWidth() == nbits);
 
         // Check the output type is i1 (boolean)
-        auto outputType = mlirCompOp.getResult().getType().template dyn_cast<::mlir::IntegerType>();
+        auto outputType = ::mlir::dyn_cast<::mlir::IntegerType>(mlirCompOp.getResult().getType());
         assert(outputType);
         assert(outputType.getWidth() == 1);
 

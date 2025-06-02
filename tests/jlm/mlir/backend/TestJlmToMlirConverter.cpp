@@ -51,7 +51,7 @@ TestLambda()
     // Lamda + terminating operation
     assert(omegaBlock.getOperations().size() == 2);
     auto & mlirLambda = omegaBlock.front();
-    assert(mlirLambda.getName().getStringRef().equals(mlir::rvsdg::LambdaNode::getOperationName()));
+    assert(mlirLambda.getName().getStringRef().equals_insensitive(mlir::rvsdg::LambdaNode::getOperationName()));
 
     // Verify function name
     std::cout << "Verify function name" << std::endl;
@@ -85,15 +85,15 @@ TestLambda()
     {
       results.push_back(returnType);
     }
-    assert(results[0].isa<mlir::IntegerType>());
-    assert(results[1].isa<mlir::rvsdg::IOStateEdgeType>());
-    assert(results[2].isa<mlir::rvsdg::MemStateEdgeType>());
+    assert(::mlir::isa<mlir::IntegerType>(results[0]));
+    assert(::mlir::isa<mlir::rvsdg::IOStateEdgeType>(results[1]));
+    assert(::mlir::isa<mlir::rvsdg::MemStateEdgeType>(results[2]));
 
     auto & lambdaRegion = mlirLambda.getRegion(0);
     auto & lambdaBlock = lambdaRegion.front();
     // Bitconstant + terminating operation
     assert(lambdaBlock.getOperations().size() == 2);
-    assert(lambdaBlock.front().getName().getStringRef().equals(
+    assert(lambdaBlock.front().getName().getStringRef().equals_insensitive(
         mlir::arith::ConstantIntOp::getOperationName()));
 
     omega->destroy();
@@ -119,7 +119,7 @@ useChainsUpTraverse(mlir::Operation * operation, std::vector<llvm::StringRef> de
   std::cout << "Checking if operation: "
             << operation->getOperand(0).getDefiningOp()->getName().getStringRef().data()
             << " is equal to: " << definingOperations.back().data() << std::endl;
-  assert(operation->getOperand(0).getDefiningOp()->getName().getStringRef().equals(
+  assert(operation->getOperand(0).getDefiningOp()->getName().getStringRef().equals_insensitive(
       definingOperations.back()));
   definingOperations.pop_back();
   useChainsUpTraverse(operation->getOperand(0).getDefiningOp(), definingOperations);
@@ -199,9 +199,9 @@ TestAddOperation()
     int constCount = 0;
     for (auto & operation : operations)
     {
-      if (operation->getName().getStringRef().equals(mlir::rvsdg::LambdaResult::getOperationName()))
+      if (operation->getName().getStringRef().equals_insensitive(mlir::rvsdg::LambdaResult::getOperationName()))
         continue;
-      if (operation->getName().getStringRef().equals(
+      if (operation->getName().getStringRef().equals_insensitive(
               mlir::arith::ConstantIntOp::getOperationName()))
       {
         constCount++;
@@ -209,7 +209,7 @@ TestAddOperation()
       }
       // Checking add operation
       std::cout << "Checking add operation" << std::endl;
-      assert(operation->getName().getStringRef().equals(
+      assert(operation->getName().getStringRef().equals_insensitive(
           mlir::arith::AddIOp::getOperationName())); // Last remaining operation is the add
                                                      // operation
       assert(operation->getNumOperands() == 2);
@@ -309,9 +309,9 @@ TestComZeroExt()
     int compCount = 0;
     for (auto & operation : operations)
     {
-      if (operation->getName().getStringRef().equals(mlir::rvsdg::LambdaResult::getOperationName()))
+      if (operation->getName().getStringRef().equals_insensitive(mlir::rvsdg::LambdaResult::getOperationName()))
         continue;
-      if (operation->getName().getStringRef().equals(
+      if (operation->getName().getStringRef().equals_insensitive(
               mlir::arith::ConstantIntOp::getOperationName()))
       {
         assert(
@@ -320,7 +320,7 @@ TestComZeroExt()
         constCount++;
         continue;
       }
-      if (operation->getName().getStringRef().equals(mlir::arith::ExtUIOp::getOperationName()))
+      if (operation->getName().getStringRef().equals_insensitive(mlir::arith::ExtUIOp::getOperationName()))
       {
         assert(operation->getNumOperands() == 1);
         assert(operation->getOperand(0).getType().isInteger(8));
@@ -329,7 +329,7 @@ TestComZeroExt()
         extCount++;
         continue;
       }
-      if (operation->getName().getStringRef().equals(mlir::arith::MulIOp::getOperationName()))
+      if (operation->getName().getStringRef().equals_insensitive(mlir::arith::MulIOp::getOperationName()))
       {
         assert(operation->getNumOperands() == 2);
         assert(operation->getOperand(0).getType().isInteger(16));
@@ -339,7 +339,7 @@ TestComZeroExt()
         mulCount++;
         continue;
       }
-      if (operation->getName().getStringRef().equals(mlir::arith::CmpIOp::getOperationName()))
+      if (operation->getName().getStringRef().equals_insensitive(mlir::arith::CmpIOp::getOperationName()))
       {
         auto comparisonOp = mlir::cast<mlir::arith::CmpIOp>(operation);
         assert(comparisonOp.getPredicate() == mlir::arith::CmpIPredicate::sgt);
@@ -450,8 +450,8 @@ TestMatch()
         // ** region check alternatives *$
         for (auto & attr : mapping)
         {
-          assert(attr.isa<::mlir::rvsdg::MatchRuleAttr>());
-          auto matchRuleAttr = attr.cast<::mlir::rvsdg::MatchRuleAttr>();
+          assert(::mlir::isa<::mlir::rvsdg::MatchRuleAttr>(attr));
+          auto matchRuleAttr = ::mlir::cast<::mlir::rvsdg::MatchRuleAttr>(attr);
           if (matchRuleAttr.isDefault())
           {
             assert(matchRuleAttr.getIndex() == 2);

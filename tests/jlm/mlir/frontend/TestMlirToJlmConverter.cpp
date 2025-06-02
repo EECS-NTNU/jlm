@@ -210,15 +210,15 @@ TestDivOperation()
     for (unsigned int i = 0; i < lambdaBlock->getNumArguments(); ++i)
     {
       auto arg = lambdaBlock->getArgument(i);
-      if (arg.getType().isa<IOStateEdgeType>())
+      if (::mlir::isa<IOStateEdgeType>(arg.getType()))
       {
         std::cout << "Argument " << i << " is an IOStateEdgeType" << std::endl;
       }
-      else if (arg.getType().isa<MemStateEdgeType>())
+      else if (::mlir::isa<MemStateEdgeType>(arg.getType()))
       {
         std::cout << "Argument " << i << " is a MemStateEdgeType" << std::endl;
       }
-      else if (arg.getType().isa<mlir::IntegerType>())
+      else if (::mlir::isa<mlir::IntegerType>(arg.getType()))
       {
         std::cout << "Argument " << i << " is an IntegerType" << std::endl;
       }

@@ -711,8 +711,8 @@ TestGetElementPtr()
     auto index1 = indices[1].dyn_cast<mlir::Value>();
     assert(index0);
     assert(index1);
-    assert(index0.getType().isa<mlir::IntegerType>());
-    assert(index1.getType().isa<mlir::IntegerType>());
+    assert(::mlir::isa<mlir::IntegerType>(index0.getType()));
+    assert(::mlir::isa<mlir::IntegerType>(index1.getType()));
     assert(index0.getType().getIntOrFloatBitWidth() == 32);
     assert(index1.getType().getIntOrFloatBitWidth() == 32);
 
@@ -810,11 +810,11 @@ TestDelta()
 
       assert(mlirDeltaNode.getSection() == "section");
       assert(mlirDeltaNode.getLinkage() == "external_linkage");
-      assert(mlirDeltaNode.getType().isa<mlir::LLVM::LLVMPointerType>());
+      assert(::mlir::isa<mlir::LLVM::LLVMPointerType>(mlirDeltaNode.getType()));
       auto terminator = mlirDeltaNode.getRegion().front().getTerminator();
       assert(terminator);
       assert(terminator->getNumOperands() == 1);
-      assert(terminator->getOperand(0).getType().isa<mlir::IntegerType>());
+      assert(::mlir::isa<mlir::IntegerType>(terminator->getOperand(0).getType()));
     }
 
     // Convert the MLIR to RVSDG and check the result
@@ -886,12 +886,12 @@ TestConstantDataArray()
       if (mlirConstantDataArray)
       {
         assert(mlirConstantDataArray.getNumOperands() == 2);
-        assert(mlirConstantDataArray.getOperand(0).getType().isa<mlir::IntegerType>());
-        assert(mlirConstantDataArray.getOperand(1).getType().isa<mlir::IntegerType>());
+        assert(::mlir::isa<mlir::IntegerType>(mlirConstantDataArray.getOperand(0).getType()));
+        assert(::mlir::isa<mlir::IntegerType>(mlirConstantDataArray.getOperand(1).getType()));
         auto mlirConstantDataArrayResultType =
-            mlirConstantDataArray.getResult().getType().dyn_cast<mlir::LLVM::LLVMArrayType>();
+            ::mlir::dyn_cast<mlir::LLVM::LLVMArrayType>(mlirConstantDataArray.getResult().getType());
         assert(mlirConstantDataArrayResultType);
-        assert(mlirConstantDataArrayResultType.getElementType().isa<mlir::IntegerType>());
+        assert(::mlir::isa<mlir::IntegerType>(mlirConstantDataArrayResultType.getElementType()));
         assert(mlirConstantDataArrayResultType.getNumElements() == 2);
         foundConstantDataArray = true;
       }
@@ -959,9 +959,9 @@ TestConstantAggregateZero()
     auto mlirConstantAggregateZero = ::mlir::dyn_cast<::mlir::LLVM::ZeroOp>(&omegaBlock.front());
     assert(mlirConstantAggregateZero);
     auto mlirConstantAggregateZeroResultType =
-        mlirConstantAggregateZero.getType().dyn_cast<mlir::LLVM::LLVMArrayType>();
+        ::mlir::dyn_cast<mlir::LLVM::LLVMArrayType>(mlirConstantAggregateZero.getType());
     assert(mlirConstantAggregateZeroResultType);
-    assert(mlirConstantAggregateZeroResultType.getElementType().isa<mlir::IntegerType>());
+    assert(::mlir::isa<mlir::IntegerType>(mlirConstantAggregateZeroResultType.getElementType()));
     assert(mlirConstantAggregateZeroResultType.getNumElements() == 2);
 
     // // Convert the MLIR to RVSDG and check the result
@@ -1022,9 +1022,9 @@ TestVarArgList()
       if (mlirVarArgOp)
       {
         assert(mlirVarArgOp.getOperands().size() == 2);
-        assert(mlirVarArgOp.getOperands()[0].getType().isa<mlir::IntegerType>());
-        assert(mlirVarArgOp.getOperands()[1].getType().isa<mlir::IntegerType>());
-        assert(mlirVarArgOp.getResult().getType().isa<mlir::jlm::VarargListType>());
+        assert(::mlir::isa<mlir::IntegerType>(mlirVarArgOp.getOperands()[0].getType()));
+        assert(::mlir::isa<mlir::IntegerType>(mlirVarArgOp.getOperands()[1].getType()));
+        assert(::mlir::isa<mlir::jlm::VarargListType>(mlirVarArgOp.getResult().getType()));
         foundVarArgOp = true;
       }
     }
@@ -1094,10 +1094,10 @@ TestFNeg()
       auto mlirFNegOp = ::mlir::dyn_cast<::mlir::arith::NegFOp>(&op);
       if (mlirFNegOp)
       {
-        auto inputFloatType = mlirFNegOp.getOperand().getType().dyn_cast<mlir::FloatType>();
+        auto inputFloatType = ::mlir::dyn_cast<mlir::FloatType>(mlirFNegOp.getOperand().getType());
         assert(inputFloatType);
         assert(inputFloatType.getWidth() == 32);
-        auto outputFloatType = mlirFNegOp.getResult().getType().dyn_cast<mlir::FloatType>();
+        auto outputFloatType = ::mlir::dyn_cast<mlir::FloatType>(mlirFNegOp.getResult().getType());
         assert(outputFloatType);
         assert(outputFloatType.getWidth() == 32);
         foundFNegOp = true;
@@ -1172,10 +1172,10 @@ TestFPExt()
       auto mlirFPExtOp = ::mlir::dyn_cast<::mlir::arith::ExtFOp>(&op);
       if (mlirFPExtOp)
       {
-        auto inputFloatType = mlirFPExtOp.getOperand().getType().dyn_cast<mlir::FloatType>();
+        auto inputFloatType = ::mlir::dyn_cast<mlir::FloatType>(mlirFPExtOp.getOperand().getType());
         assert(inputFloatType);
         assert(inputFloatType.getWidth() == 32);
-        auto outputFloatType = mlirFPExtOp.getResult().getType().dyn_cast<mlir::FloatType>();
+        auto outputFloatType = ::mlir::dyn_cast<mlir::FloatType>(mlirFPExtOp.getResult().getType());
         assert(outputFloatType);
         assert(outputFloatType.getWidth() == 64);
         foundFPExtOp = true;
@@ -1249,10 +1249,10 @@ TestTrunc()
       auto mlirTruncOp = ::mlir::dyn_cast<::mlir::arith::TruncIOp>(&op);
       if (mlirTruncOp)
       {
-        auto inputBitType = mlirTruncOp.getOperand().getType().dyn_cast<mlir::IntegerType>();
+        auto inputBitType = ::mlir::dyn_cast<mlir::IntegerType>(mlirTruncOp.getOperand().getType());
         assert(inputBitType);
         assert(inputBitType.getWidth() == 64);
-        auto outputBitType = mlirTruncOp.getResult().getType().dyn_cast<mlir::IntegerType>();
+        auto outputBitType = ::mlir::dyn_cast<mlir::IntegerType>(mlirTruncOp.getResult().getType());
         assert(outputBitType);
         assert(outputBitType.getWidth() == 32);
         foundTruncOp = true;
@@ -1428,8 +1428,8 @@ TestFunctionGraphImport()
     auto linkage = mlirOmegaArgument.getLinkage();
     auto name = mlirOmegaArgument.getName();
 
-    auto mlirFunctionType = valueType.dyn_cast<mlir::FunctionType>();
-    auto mlirImportedFunctionType = importedValueType.dyn_cast<mlir::FunctionType>();
+    auto mlirFunctionType = ::mlir::dyn_cast<mlir::FunctionType>(valueType);
+    auto mlirImportedFunctionType = ::mlir::dyn_cast<mlir::FunctionType>(importedValueType);
     assert(mlirFunctionType);
     assert(mlirImportedFunctionType);
     assert(mlirFunctionType == mlirImportedFunctionType);
@@ -1508,7 +1508,7 @@ TestPointerGraphImport()
 
     assert(mlir::isa<mlir::LLVM::LLVMPointerType>(importedValueType));
 
-    auto mlirIntType = valueType.dyn_cast<mlir::IntegerType>();
+    auto mlirIntType = ::mlir::dyn_cast<mlir::IntegerType>(valueType);
     assert(mlirIntType);
     assert(mlirIntType.getWidth() == 32);
     assert(linkage == "external_linkage");
@@ -1595,13 +1595,13 @@ TestIOBarrier()
         assert(ioBarrier->getNumOperands() == 2);
 
         // Check that the first operand is a 32-bit integer
-        auto valueType = ioBarrier->getOperand(0).getType().dyn_cast<mlir::IntegerType>();
+        auto valueType = ::mlir::dyn_cast<mlir::IntegerType>(ioBarrier->getOperand(0).getType());
         assert(valueType);
         assert(valueType.getWidth() == 32);
         assert(mlir::isa<mlir::rvsdg::IOStateEdgeType>(ioBarrier->getOperand(1).getType()));
 
         // Check that the result type matches the input value type
-        auto resultType = ioBarrier->getResult(0).getType().dyn_cast<mlir::IntegerType>();
+        auto resultType = ::mlir::dyn_cast<mlir::IntegerType>(ioBarrier->getResult(0).getType());
         assert(resultType);
         assert(resultType.getWidth() == 32);
       }
@@ -1688,7 +1688,7 @@ TestMalloc()
       auto mlirMallocOp = ::mlir::dyn_cast<::mlir::jlm::Malloc>(&op);
       if (mlirMallocOp)
       {
-        auto inputBitType = mlirMallocOp.getOperand().getType().dyn_cast<mlir::IntegerType>();
+        auto inputBitType = ::mlir::dyn_cast<mlir::IntegerType>(mlirMallocOp.getOperand().getType());
         assert(inputBitType);
         assert(inputBitType.getWidth() == 64);
         assert(mlir::isa<mlir::LLVM::LLVMPointerType>(mlirMallocOp.getResult(0).getType()));
