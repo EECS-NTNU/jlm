@@ -59,7 +59,6 @@ FirrtlToVerilogConverter::Convert(
   firtoolOptions.setPreserveValues(firrtl::PreserveValues::PreserveMode::Named);
   firtoolOptions.setBuildMode(firtool::FirtoolOptions::BuildModeDefault);
   firtoolOptions.setChiselInterfaceOutDirectory("");
-  firtoolOptions.setDisableHoistingHWPassthrough(true);
   firtoolOptions.setOmirOutFile("");
   firtoolOptions.setBlackBoxRootPath("");
   firtoolOptions.setReplSeqMemFile("");

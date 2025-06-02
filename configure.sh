@@ -1,7 +1,7 @@
 #!/bin/bash
 set -eu
 
-LLVM_VERSION=18
+LLVM_VERSION=19
 
 # Default values for all tunables.
 TARGET="release"
@@ -142,12 +142,18 @@ if [ "${ENABLE_HLS}" == "yes" ] ; then
 		"-lCIRCTSupport"
 		"-lCIRCTDebug"
 		"-lCIRCTLTL"
+		"-lCIRCTLTLToCore"
 		"-lCIRCTVerif"
+		"-lCIRCTFIRRTLAnalysis"
 		"-lCIRCTFIRRTL"
 		"-lCIRCTSeq"
 		"-lCIRCTSeqToSV"
 		"-lCIRCTSeqTransforms"
+		"-lCIRCTHWToBTOR2"
 		"-lCIRCTHW"
+		"-lCIRCTEmit"
+		"-lCIRCTVerif"
+		"-lCIRCTVerifTransforms"
 		"-lCIRCTVerifToSV"
 		"-lCIRCTSimToSV"
 		"-lCIRCTExportChiselInterface"

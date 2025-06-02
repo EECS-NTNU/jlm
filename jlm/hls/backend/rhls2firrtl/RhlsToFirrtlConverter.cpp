@@ -729,7 +729,7 @@ RhlsToFirrtlConverter::MlirGenHlsMemResp(const jlm::rvsdg::SimpleNode * node)
     auto memResId = GetSubfield(body, memResBundle, "id");
     auto memResData = GetSubfield(body, memResBundle, "data");
     auto portWidth =
-        memResData->getResult(0).getType().cast<circt::firrtl::IntType>().getWidth().value();
+        ::mlir::cast<circt::firrtl::IntType>(memResData->getResult(0).getType()).getWidth().value();
 
     auto elseBody = body;
     for (size_t i = 0; i < node->noutputs(); ++i)
@@ -2519,7 +2519,7 @@ RhlsToFirrtlConverter::MlirGen(
 circt::firrtl::BitsPrimOp
 RhlsToFirrtlConverter::DropMSBs(mlir::Block * body, mlir::Value value, int amount)
 {
-  auto type = value.getType().cast<circt::firrtl::UIntType>();
+  auto type = ::mlir::cast<circt::firrtl::UIntType>(value.getType());
   auto width = type.getWidth();
   auto result = AddBitsOp(body, value, width.value() - 1 - amount, 0);
   return result;
@@ -3659,7 +3659,7 @@ RhlsToFirrtlConverter::check_module(circt::firrtl::FModuleOp & module)
         if (auto subfieldOp = mlir::dyn_cast<circt::firrtl::SubfieldOp>(user))
         {
           auto subfieldName =
-              subfieldOp.getInput().getType().cast<circt::firrtl::BundleType>().getElementName(
+              ::mlir::cast<circt::firrtl::BundleType>(subfieldOp.getInput().getType()).getElementName(
                   subfieldOp.getFieldIndex());
           if (subfieldName == "ready")
           {
@@ -3829,8 +3829,8 @@ mlir::BlockArgument
 RhlsToFirrtlConverter::GetClockSignal(circt::firrtl::FModuleOp module)
 {
   auto clock = module.getArgument(0);
-  auto ctype = clock.getType().cast<circt::firrtl::FIRRTLType>();
-  if (!ctype.isa<circt::firrtl::ClockType>())
+  auto ctype = ::mlir::cast<circt::firrtl::FIRRTLType>(clock.getType());
+  if (!::mlir::isa<circt::firrtl::ClockType>(ctype))
   {
     JLM_ASSERT("Not a ClockType");
   }
@@ -3842,8 +3842,8 @@ mlir::BlockArgument
 RhlsToFirrtlConverter::GetResetSignal(circt::firrtl::FModuleOp module)
 {
   auto reset = module.getArgument(1);
-  auto rtype = reset.getType().cast<circt::firrtl::FIRRTLType>();
-  if (!rtype.isa<circt::firrtl::ResetType>())
+  auto rtype = ::mlir::cast<circt::firrtl::FIRRTLType>(reset.getType());
+  if (!::mlir::isa<circt::firrtl::ResetType>(rtype))
   {
     JLM_ASSERT("Not a ResetType");
   }
