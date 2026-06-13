@@ -8,17 +8,17 @@
 #include <jlm/hls/backend/rhls2firrtl/RhlsToFirrtlConverter.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/GammaConversion.hpp>
 #include <jlm/hls/ir/hls.hpp>
-#include <jlm/llvm/ir/RvsdgModule.hpp>
 #include <jlm/llvm/ir/operators/IntegerOperations.hpp>
 #include <jlm/llvm/ir/operators/lambda.hpp>
+#include <jlm/llvm/ir/RvsdgModule.hpp>
 #include <jlm/rvsdg/control.hpp>
 #include <jlm/rvsdg/gamma.hpp>
 #include <jlm/rvsdg/TestType.hpp>
 #include <jlm/rvsdg/theta.hpp>
 
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
-#include <llvm/IR/Instructions.h>
 
 #include <fstream>
 #include <regex>
@@ -68,14 +68,14 @@ GenerateFirrtlFromGamma(
   // Add gamma node for control flow - use control type directly as predicate
   // (ControlType can be used directly as gamma predicate without MatchOperation)
   auto gamma = GammaNode::create(lambdaNode->GetFunctionArguments()[0], nbranches);
-  
+
   // Add entry variables and collect their branch arguments for exit vars
   std::vector<GammaNode::EntryVar> entryVars;
   for (size_t i = 1; i < arguments.size(); ++i)
   {
     entryVars.push_back(gamma->AddEntryVar(lambdaNode->GetFunctionArguments()[i]));
   }
-  
+
   // Add exit variable - all branches return the same value
   std::vector<Output *> branchResults;
   if (!results.empty() && !entryVars.empty())
@@ -113,7 +113,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestWhenStatementSingleBranch)
   // Arrange - Single branch gamma (simplified case)
   auto controlType = jlm::rvsdg::ControlType::Create(2);
   auto bitType = jlm::rvsdg::BitType::Create(32);
-  
+
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> arguments = { controlType, bitType };
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> results = { bitType };
 
@@ -134,7 +134,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestWhenElseStatement)
   // Arrange - Two branch gamma with else
   auto controlType = jlm::rvsdg::ControlType::Create(2);
   auto bitType = jlm::rvsdg::BitType::Create(32);
-  
+
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> arguments = { controlType, bitType };
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> results = { bitType };
 
@@ -155,7 +155,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestNestedWhenStatements)
   // Arrange - Create a gamma node with nested structure using a 3-branch match
   auto controlType = jlm::rvsdg::ControlType::Create(3);
   auto bitType = jlm::rvsdg::BitType::Create(32);
-  
+
   jlm::llvm::LlvmRvsdgModule rm(jlm::util::FilePath(""), "", "");
 
   auto lambdaNode = jlm::rvsdg::LambdaNode::Create(
@@ -167,10 +167,10 @@ TEST(RhlsToFirrtlConverterTestsControl, TestNestedWhenStatements)
 
   // Add gamma node for multi-branch control flow - use control type directly as predicate
   auto gamma = GammaNode::create(lambdaNode->GetFunctionArguments()[0], 3);
-  
+
   // Add entry variable
   auto ev = gamma->AddEntryVar(lambdaNode->GetFunctionArguments()[1]);
-  
+
   // Create exit var - all branches return the same value
   std::vector<Output *> branchArgs;
   for (size_t b = 0; b < 3; ++b)
@@ -178,7 +178,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestNestedWhenStatements)
     branchArgs.push_back(ev.branchArgument[b]);
   }
   auto ex = gamma->AddExitVar(branchArgs);
-  
+
   auto f = lambdaNode->finalize({ ex.output });
   (void)f;
 
@@ -206,7 +206,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestRegisterWithReset)
 {
   // Arrange - Register operations with reset handling are in the converter
   auto bitType = jlm::rvsdg::BitType::Create(32);
-  
+
   jlm::llvm::LlvmRvsdgModule rm(jlm::util::FilePath(""), "", "");
 
   auto lambdaNode = jlm::rvsdg::LambdaNode::Create(
@@ -221,7 +221,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestRegisterWithReset)
       bitType->nbits(),
       *lambdaNode->GetFunctionArguments()[0],
       *lambdaNode->GetFunctionArguments()[0]);
-  
+
   auto f = lambdaNode->finalize({ addNode.output(0) });
   (void)f;
 
@@ -249,7 +249,7 @@ TEST(RhlsToFirrtlConverterTestsControl, TestMultiBranchControlFlow)
   // Arrange - Three branch gamma for else-if chain
   auto controlType = jlm::rvsdg::ControlType::Create(3);
   auto bitType = jlm::rvsdg::BitType::Create(32);
-  
+
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> arguments = { controlType, bitType };
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> results = { bitType };
 
@@ -272,10 +272,10 @@ TEST(RhlsToFirrtlConverterTestsControl, TestControlDependentMemoryAccess)
   auto controlType = jlm::rvsdg::ControlType::Create(2);
   auto bitType = jlm::rvsdg::BitType::Create(32);
   auto ptrType = jlm::llvm::PointerType::Create();
-  
+
   // For this test, we verify the converter handles memory operations correctly
   // The full memory tests are in Task 3.1
-  
+
   // Act - Use a simple lambda with control flow that could affect memory access patterns
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> arguments = { controlType };
   std::vector<std::shared_ptr<const jlm::rvsdg::Type>> results;

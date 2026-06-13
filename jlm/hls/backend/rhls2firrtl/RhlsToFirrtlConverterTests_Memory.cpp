@@ -7,12 +7,12 @@
 
 #include <jlm/hls/backend/rhls2firrtl/RhlsToFirrtlConverter.hpp>
 #include <jlm/hls/backend/rvsdg2rhls/GammaConversion.hpp>
-#include <jlm/llvm/ir/RvsdgModule.hpp>
 #include <jlm/llvm/ir/operators/IntegerOperations.hpp>
 #include <jlm/llvm/ir/operators/lambda.hpp>
-#include <jlm/rvsdg/TestType.hpp>
-#include <jlm/rvsdg/gamma.hpp>
+#include <jlm/llvm/ir/RvsdgModule.hpp>
 #include <jlm/rvsdg/control.hpp>
+#include <jlm/rvsdg/gamma.hpp>
+#include <jlm/rvsdg/TestType.hpp>
 
 #include <fstream>
 #include <regex>
@@ -49,7 +49,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestMemDeclaration)
 
   // Arrange - Simple lambda that will use memory if present in module
   auto bitType = BitType::Create(32);
-  
+
   LlvmRvsdgModule rm(FilePath(""), "", "");
   auto & rvsdg = rm.Rvsdg();
 
@@ -93,7 +93,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestMemAddressWidths)
   for (size_t bits : { 8, 16, 32, 64 })
   {
     auto bitType = BitType::Create(bits);
-    
+
     LlvmRvsdgModule rm(FilePath(""), "", "");
     auto & rvsdg = rm.Rvsdg();
 
@@ -149,7 +149,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestMemoryWithControlFlow)
 
   // Add gamma node for control flow - use control type directly as predicate
   auto gamma = GammaNode::create(lambdaNode->GetFunctionArguments()[0], 2);
-  
+
   // Add entry variable
   auto ev = gamma->AddEntryVar(lambdaNode->GetFunctionArguments()[1]);
 
@@ -160,7 +160,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestMemoryWithControlFlow)
     branchArgs.push_back(ev.branchArgument[b]);
   }
   auto ex = gamma->AddExitVar(branchArgs);
-  
+
   auto f = lambdaNode->finalize({ ex.output });
   (void)f;
 
@@ -207,7 +207,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestFirrtlMemFormat)
 
   // Add gamma node for multi-branch control flow - use control type directly as predicate
   auto gamma = GammaNode::create(lambdaNode->GetFunctionArguments()[0], 3);
-  
+
   // Add entry variable
   auto ev = gamma->AddEntryVar(lambdaNode->GetFunctionArguments()[1]);
 
@@ -218,7 +218,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestFirrtlMemFormat)
     branchArgs.push_back(ev.branchArgument[b]);
   }
   auto ex = gamma->AddExitVar(branchArgs);
-  
+
   auto f = lambdaNode->finalize({ ex.output });
   (void)f;
 
@@ -236,7 +236,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestFirrtlMemFormat)
   EXPECT_FALSE(firrtl.empty());
   EXPECT_TRUE(ContainsSubstring(firrtl, "circuit"));
   EXPECT_TRUE(ContainsSubstring(firrtl, "module"));
-  
+
   // Count when statements for multi-branch
   int whenCount = CountSubstring(firrtl, "when");
   EXPECT_GE(whenCount, 2) << "Expected at least 2 'when' statements for 3-branch";
@@ -281,7 +281,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestMemConnectionStatements)
   EXPECT_FALSE(firrtl.empty());
   EXPECT_TRUE(ContainsSubstring(firrtl, "circuit"));
   EXPECT_TRUE(ContainsSubstring(firrtl, "module"));
-  
+
   // FIRRTL should have connection statements
   int connectCount = CountSubstring(firrtl, "connect ");
   EXPECT_GE(connectCount, 1) << "Expected at least 1 'connect' statement";
@@ -299,7 +299,7 @@ TEST(RhlsToFirrtlConverterTestsMemory, TestDifferentBitWidths)
   for (size_t bits : { 8, 16, 32, 64 })
   {
     auto bitType = BitType::Create(bits);
-    
+
     LlvmRvsdgModule rm(FilePath(""), "", "");
     auto & rvsdg = rm.Rvsdg();
 
