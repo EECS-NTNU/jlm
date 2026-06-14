@@ -12,9 +12,13 @@ namespace jlm::hls
 {
 
 /**
- * Converts every rvsdg::GammaNode in \p rvsdgModule to its respective HLS equivalent.
+ * \brief Converts gamma nodes to HLS multiplexer operations.
  *
- * @param rvsdgModule The RVSDG module the transformation is performed on.
+ * Gamma nodes in the RVSDG represent conditional control flow but need to be converted to
+ * HLS-specific mux operations for hardware synthesis. This transformation is required before
+ * FIRRTL generation and must run after gamma node creation but before the R-HLS conversion.
+ *
+ * \see RhlsToFirrtlConverter The FIRRTL converter that expects converted gamma nodes.
  */
 class GammaNodeConversion final : public rvsdg::Transformation
 {
@@ -31,6 +35,12 @@ public:
   void
   Run(rvsdg::RvsdgModule & rvsdgModule, util::StatisticsCollector & statisticsCollector) override;
 
+  /**
+   * \brief Creates and runs a gamma node conversion transformation.
+   *
+   * This static helper creates an instance of GammaNodeConversion and runs it on the
+   * provided RVSDG module.
+   */
   static void
   CreateAndRun(rvsdg::RvsdgModule & rvsdgModule, util::StatisticsCollector & statisticsCollector)
   {

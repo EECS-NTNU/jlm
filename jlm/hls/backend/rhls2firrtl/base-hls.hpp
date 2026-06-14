@@ -16,14 +16,30 @@
 namespace jlm::hls
 {
 
+/**
+ * \brief Checks if a character is forbidden in HLS node names.
+ */
 bool
 isForbiddenChar(char c);
 
+/**
+ * \brief Abstract base class for HLS backends that generate text output from R-HLS modules.
+ *
+ * BaseHLS provides common functionality for HLS backends including:
+ * - Node and port naming/mapping utilities
+ * - Memory response/request extraction helpers (get_mem_resps, get_mem_reqs)
+ * - Register argument/result extraction helpers (get_reg_args, get_reg_results)
+ */
 class BaseHLS
 {
 public:
   virtual ~BaseHLS();
 
+  /**
+   * \brief Runs the HLS backend on an LLVM RVSDG module.
+   *
+   * Creates consistent node names and returns a text representation of the output.
+   */
   std::string
   run(llvm::LlvmRvsdgModule & rm)
   {
@@ -33,6 +49,9 @@ public:
     return GetText(rm);
   }
 
+  /**
+   * \brief Returns the size of a type in bits.
+   */
   static int
   JlmSize(const jlm::rvsdg::Type * type);
 
@@ -66,10 +85,11 @@ protected:
   get_base_file_name(const llvm::LlvmRvsdgModule & rm);
 
   /**
-   * Extracts all region arguments of the given kernel that represent memory responses.
-   * They can provide multiple values within a single execution of the region.
-   * @param lambda the lambda node holding the hls kernel
-   * @return the arguments that represent memory responses
+   * \brief Extracts memory response arguments from a kernel lambda node.
+   *
+   * Memory responses provide multiple values within a single execution of the region.
+   * @param lambda The lambda node holding the HLS kernel.
+   * @return Arguments representing memory responses.
    */
   std::vector<rvsdg::RegionArgument *>
   get_mem_resps(const rvsdg::LambdaNode & lambda)
@@ -84,10 +104,11 @@ protected:
   }
 
   /**
-   * Extracts all region results of the given kernel that represent memory requests.
-   * They can take multiple values within a single execution of the region.
-   * @param lambda the lambda node holding the hls kernel
-   * @return the results that represent memory requests
+   * \brief Extracts memory request results from a kernel lambda node.
+   *
+   * Memory requests take multiple values within a single execution of the region.
+   * @param lambda The lambda node holding the HLS kernel.
+   * @return Results representing memory requests.
    */
   std::vector<rvsdg::RegionResult *>
   get_mem_reqs(const rvsdg::LambdaNode & lambda)
@@ -102,11 +123,12 @@ protected:
   }
 
   /**
-   * Extracts all region arguments of the given kernel that represent kernel inputs,
-   * which may include kernel arguments, state types, and context variables (always in that order).
-   * It will not return any arguments that represent memory responses.
-   * @param lambda the lambda node holding the hls kernel
-   * @return the arguments of the lambda that represent kernel inputs
+   * \brief Extracts register arguments from a kernel lambda node.
+   *
+   * Register arguments represent kernel inputs that are not memory responses,
+   * including kernel arguments, state types, and context variables.
+   * @param lambda The lambda node holding the HLS kernel.
+   * @return Arguments representing kernel inputs (non-bundle type).
    */
   std::vector<rvsdg::RegionArgument *>
   get_reg_args(const rvsdg::LambdaNode & lambda)
@@ -121,10 +143,11 @@ protected:
   }
 
   /**
-   * Extracts all region results from the given kernel that represent results from execution,
-   * as opposed to results used for making memory requests.
-   * @param lambda the lambda node holding the hls kernel
-   * @return the results of the lambda that represent the kernel outputs
+   * \brief Extracts register results from a kernel lambda node.
+   *
+   * Register results represent actual execution outputs, excluding memory requests.
+   * @param lambda The lambda node holding the HLS kernel.
+   * @return Results representing kernel outputs (non-bundle type).
    */
   std::vector<rvsdg::RegionResult *>
   get_reg_results(const rvsdg::LambdaNode & lambda)

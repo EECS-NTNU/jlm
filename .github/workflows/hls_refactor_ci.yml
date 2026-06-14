@@ -1,0 +1,87 @@
+name: HLS Refactoring CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  baseline-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make gcc g++ clang-format clang-tidy lcov
+      - name: Build with coverage flags
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Debug -DCOVERAGE=ON
+          make -j$(nproc)
+      - name: Run unit tests
+        run: ./build/run-libhls-tests --gtest_brief=0
+      - name: Generate coverage report
+        run: |
+          lcov --capture --directory . --output-file coverage.info
+          genhtml coverage.info --output-directory coverage-report
+
+  performance-check:
+    runs-on: ubuntu-latest
+    needs: baseline-check
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install CIRCT (firtool)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y circt
+      - name: Measure compilation times
+        run: |
+          scripts/verify-performance.sh /tmp/perf-baseline
+      - name: Compare against baseline
+        run: |
+          # The script exits with non‑zero if regression exceeds thresholds
+
+  e2e-validation:
+    runs-on: ubuntu-latest
+    needs: performance-check
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install CIRCT and Verilator
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y circt verilator
+      - name: Build full pipeline
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(nproc)
+      - name: Run end‑to‑end tests
+        run: |
+          ./scripts/e2e-validate.sh --input /tmp/test-module.fir
+
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Run clang-format
+        run: |
+          find jlm/hls -name '*.hpp' -o -name '*.cpp' | xargs clang-format -i
+      - name: Run clang-tidy
+        run: |
+          cd build && make clang-tidy
+
+  pr-size-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Enforce PR size limit (<400 lines)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          changed=$(git diff --shortstat HEAD~1 HEAD | awk '{print $4}')
+          if [ "$changed" -gt 400 ]; then
+            echo "PR exceeds 400 line change limit"
+            exit 1
+          fi

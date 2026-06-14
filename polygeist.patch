@@ -1,0 +1,32 @@
+diff --git a/scripts/run-polybench.sh b/scripts/run-polybench.sh
+index 4f5a2012..d2d711b4 100755
+--- a/scripts/run-polybench.sh
++++ b/scripts/run-polybench.sh
+@@ -38,6 +38,7 @@ function usage()
+ 	echo "  --parallel #THREADS   The number of threads to run in parallel."
+ 	echo "                        Default=[${PARALLEL_THREADS}]"
+ 	echo "  --mlir                Compile polybench with jlc-mlir-roundtrip.py."
++	echo "  --polygeist           Compile polybench from polygeist generated MLIR."
+ 	echo "  --get-commit-hash     Prints the commit hash used for the build."
+ 	echo "  --help                Prints this message and stops."
+ }
+@@ -58,6 +59,10 @@ while [[ "$#" -ge 1 ]] ; do
+ 			JLC="JLC=../../scripts/jlc-mlir-roundtrip.py"
+ 			shift
+ 			;;
++		--polygeist)
++			BENCHMARK_RUN_TARGET="polygeist"
++			shift
++			;;
+ 		--get-commit-hash)
+ 			commit >&2
+ 			exit 1
+@@ -78,7 +83,7 @@ fi
+ 
+ export PATH=${JLM_BIN_DIR}:${PATH}
+ cd ${BENCHMARK_DIR}
+-git checkout ${GIT_COMMIT}
++#git checkout ${GIT_COMMIT}
+ make clean
+ echo "make ${JLC} -j ${PARALLEL_THREADS} -O ${BENCHMARK_RUN_TARGET}"
+ make ${JLC} -j ${PARALLEL_THREADS} -O ${BENCHMARK_RUN_TARGET}

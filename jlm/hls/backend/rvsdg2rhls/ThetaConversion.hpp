@@ -12,7 +12,10 @@ namespace jlm::hls
 {
 
 /**
- * Converts every rvsdg::ThetaNode in \p rvsdgModule to an hls::LoopNode.
+ * \brief Converts theta nodes to HLS loop structures.
+ *
+ * Theta nodes in the RVSDG represent loops with carry variables. This transformation converts
+ * them to HLS LoopNode representations suitable for hardware synthesis and FIRRTL generation.
  */
 class ThetaNodeConversion final : public rvsdg::Transformation
 {
@@ -29,6 +32,9 @@ public:
   void
   Run(rvsdg::RvsdgModule & rvsdgModule, util::StatisticsCollector & statisticsCollector) override;
 
+  /**
+   * \brief Creates and runs a theta node conversion transformation.
+   */
   static void
   CreateAndRun(rvsdg::RvsdgModule & rvsdgModule, util::StatisticsCollector & statisticsCollector)
   {

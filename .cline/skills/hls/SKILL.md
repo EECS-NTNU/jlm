@@ -1,9 +1,30 @@
----
+--- 
+## File Header Template
+
+```cpp
+/*
+ * Copyright YEAR Author <email@example.com>
+ * See COPYING for terms of redistribution.
+ */
+
+#ifndef PROJECT_MODULE_FILENAME_HPP
+#define PROJECT_MODULE_FILENAME_HPP
+
+// Include statements, namespace declarations, class definitions, etc.
+
+#endif // PROJECT_MODULE_FILENAME_HPP
+```
 name: hls
 description: JLM compiler HLS mode. Use when working with high-level synthesis, converting LLVM IR to FIRRTL, or generating Verilog for hardware.
 ---
 
-# JLM Compiler - High-Level Synthesis (HLS) Mode
+## Quick One‑Liner Pipeline
+- Compile C → LLVM IR: `jlc -emit-llvm src.c -o src.bc`
+- Optimize (optional): `jlm-opt src.bc -o src.opt.bc`
+- Generate FIRRTL: `jhls --emit-firrtl src.bc -o design.fir`
+- Convert to Verilog: `jhls --emit-verilog src.bc -o design.v`
+
+-------
 
 The High-Level Synthesis (HLS) mode transforms LLVM IR code into hardware descriptions. It uses the LLVM frontend to create an RVSDG, then applies HLS-specific transformations to produce FIRRTL (a hardware description language), which can be further lowered to Verilog.
 
@@ -191,6 +212,11 @@ circuit Example:
 - **Usage**: `jhls --emit-dot input.c -o output.dot`
 
 ## Build Requirements
+- **CIRCT** (install via `./scripts/build-circt.sh`)
+- **MLIR 18** (required for CIRCT)
+- **Verilator 4.038** (for simulation)
+
+-------
 
 ### CIRCT Installation
 
@@ -583,6 +609,90 @@ JlmSize(TestType::createValueType());  // Error!
 | `jlm/hls/ir/hls.hpp` | BundleType and HLS types |
 | `jlm/rvsdg/region.hpp` | Region interface for subregion access |
 | `jlm/rvsdg/lambda.hpp` | LambdaNode and finalization |
+
+## SEE ALSO
+
+### Code Generation Guidelines
+
+- All generated C++ files must be formatted with `make format` (clang‑format) and pass `make tidy` (clang‑tidy).
+- Follow the **File Header Template** described in each skill for consistency.
+- Refer to the `coding-style` SKILL for detailed formatting rules.
+
+
+- **MAIN SKILL**: [Project overview](skill:main)
+- **LLVM SKILL**: [LLVM mode details](skill:llvm)
+- **MLIR SKILL**: [MLIR mode details](skill:mlir)
+- **CIRCT SKILL**: [CIRCT integration](skill:circt)
+- **TESTING SKILL**: [Testing framework](skill:testing)
+
+## RVSDG to R-HLS Conversion Tests
+
+### Overview
+
+Tests for the RVSDG to R-HLS conversion pipeline verify that HLS transformations correctly process RVSDG graphs. These tests use Google Test and follow JLM's testing conventions.
+
+### StreamConversion Tests
+
+The `StreamConversion` pass converts HLS stream operations (producer/consumer pairs) into buffer-based communication. Test cases should verify:
+- Lambda structure preservation
+- Constant value handling
+- No-op behavior for lambdas without stream operations
+
+#### Example Pattern
+
+```cpp
+TEST(StreamConversionTests, TestSimpleStream)
+{
+  using namespace jlm::llvm;
+
+  auto bit32Type = jlm::rvsdg::BitType::Create(32);
+
+  LlvmRvsdgModule rm(jlm::util::FilePath("", "", ""));
+  auto & rvsdg = rm.Rvsdg();
+
+  auto lambda = jlm::rvsdg::LambdaNode::Create(
+      rvsdg.GetRootRegion(),
+      LlvmLambdaOperation::Create(
+          jlm::rvsdg::FunctionType::Create({ bit32Type }, { bit32Type }),
+          "f",
+          Linkage::externalLinkage));
+
+  auto * constant = &jlm::rvsdg::BitConstantOperation::create(*lambda->subregion(), { 32, 42 });
+
+  auto lambdaOutput = lambda->finalize({ constant });
+  jlm::rvsdg::GraphExport::Create(*lambdaOutput, "f");
+
+  // Act
+  jlm::util::StatisticsCollector statisticsCollector;
+  jlm::hls::StreamConversion::CreateAndRun(rm, statisticsCollector);
+
+  // Assert
+  EXPECT_EQ(rvsdg.GetRootRegion().numNodes(), 1);
+}
+```
+
+#### Important Notes
+
+- Use `{ numBits, value }` format for `BitConstantOperation::create()`
+- The function returns a reference; use `&` to get pointer if needed
+- Don't call `jlm::rvsdg::view()` in tests - output goes to stdout and clutters test results
+
+### Common Issues with Memory State Handling
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `GetMemoryStateRegionArgument throws assertion` | Memory state argument doesn't exist | Use `tryGetMemoryStateEntrySplit()` which returns nullptr when no memory state exists |
+
+The pass implementation (`decouple-mem-state.cpp`) has a bug where it calls `GetMemoryStateRegionArgument(*lambda)` before checking for null. This function throws an assertion if there's no memory state, rather than returning null. The workaround is to ensure tests always include memory state arguments.
+
+### Related Files
+
+| File | Purpose |
+|------|---------|
+| `jlm/hls/backend/rvsdg2rhls/stream-conv.cpp` | StreamConversion transformation |
+| `jlm/hls/backend/rvsdg2rhls/decouple-mem-state.cpp` | MemoryStateDecoupling transformation |
+| `jlm/hls/backend/rvsdg2rhls/GammaConversion.cpp` | Gamma node to Mux conversion |
+| `jlm/hls/backend/rvsdg2rhls/ThetaConversion.cpp` | Theta node to loop conversion |
 
 ## SEE ALSO
 

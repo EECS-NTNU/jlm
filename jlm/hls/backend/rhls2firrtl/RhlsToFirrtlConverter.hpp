@@ -31,6 +31,13 @@
 namespace jlm::hls
 {
 
+/**
+ * \brief Converts R-HLS modules to FIRRTL hardware description language.
+ *
+ * This converter transforms the Regional HLS (R-HLS) representation into FIRRTL,
+ * a hardware description language that can be further lowered to Verilog for
+ * hardware synthesis and simulation.
+ */
 class RhlsToFirrtlConverter : public BaseHLS
 {
   std::string
@@ -40,6 +47,9 @@ class RhlsToFirrtlConverter : public BaseHLS
   }
 
 public:
+  /**
+   * \brief Returns the text representation of this converter.
+   */
   std::string
   GetText(llvm::LlvmRvsdgModule &) override
   {
@@ -64,15 +74,30 @@ public:
   RhlsToFirrtlConverter &
   operator=(RhlsToFirrtlConverter &&) = delete;
 
+  /**
+   * \brief Generates a FIRRTL circuit from a lambda node.
+   */
   circt::firrtl::CircuitOp
   MlirGen(const rvsdg::LambdaNode * lamdaNode);
 
+  /**
+   * \brief Writes an FIRRTL module to a file.
+   */
   void
   WriteModuleToFile(const circt::firrtl::FModuleOp fModuleOp, const rvsdg::Node * node);
 
+  /**
+   * \brief Writes an FIRRTL circuit to a file.
+   */
   void
   WriteCircuitToFile(const circt::firrtl::CircuitOp circuit, std::string name);
 
+  /**
+   * \brief Converts an LLVM RVSDG module to a FIRRTL string representation.
+   *
+   * This method creates a converter instance, generates the FIRRTL circuit from
+   * the lambda node in the module, and returns it as a string.
+   */
   std::string
   ToString(llvm::LlvmRvsdgModule & rvsdgModule)
   {
@@ -84,6 +109,9 @@ public:
     return mlirGen.toString(circuit);
   }
 
+  /**
+   * \brief Converts an LLVM RVSDG module to an MLIR module operation.
+   */
   std::unique_ptr<mlir::ModuleOp>
   ConvertToMduleOp(llvm::LlvmRvsdgModule & rvsdgModule)
   {

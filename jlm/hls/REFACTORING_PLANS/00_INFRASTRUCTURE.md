@@ -1,227 +1,176 @@
-# 00 INFRASTRUCTURE – Generator Architecture
+# Phase 0 – Infrastructure
 
-## Overview
-The HLS backend currently mixes conversion logic directly inside `RhlsToFirrtlConverter.cpp`.  
-This document defines a **modular generator infrastructure** that will:
-
-1. Provide a clear, stable API for all operation generators.
-2. Allow thread‑safe registration and lookup of generators.
-3. Enable incremental migration from the monolithic converter to a registry‑based design.
-4. Facilitate isolated unit testing of each generator.
-
-All code changes in later phases must respect the contracts described here.
+## Purpose
+This document defines the core infrastructure that must be in place before any HLS backend refactoring work proceeds. All later phases (RVSDG→RHLS, RHLS→FIRRTL, optimisation passes, etc.) depend on these components being available, correctly built, and documented.
 
 ---
 
-## 1️⃣ OperationGenerator Interface
-*File:* `jlm/hls/backend/rhls2firrtl/generators/GeneratorInterface.hpp`
+## 1️⃣ `OperationGenerator` Interface
+
+The **OperationGenerator** is a pure‑virtual base class that encapsulates the conversion of a single RHLS node into FIRRTL using a builder object. Every concrete generator (arithmetic, memory, control‑flow, structural) inherits from this interface.
 
 ```cpp
-#ifndef JLM_HLS_BACKEND_RHLS2FIRRTL_GENERATORS_GENERATORINTERFACE_HPP
-#define JLM_HLS_BACKEND_RHLS2FIRRTL_GENERATORS_GENERATORINTERFACE_HPP
+// jlm/hls/backend/rhls2firrtl/generators/GeneratorInterface.hpp
+#pragma once
 
-#include <string>
-#include "jlm/hls/backend/rhls2firrtl/base-hls.hpp"
+#include "rhls/Node.hpp"
+#include "firrtl/Builder.hpp"
 
-namespace jlm {
-namespace hls {
-namespace backend {
-namespace rhls2firrtl {
-namespace generators {
+namespace jlm::hls::rhls2firrtl {
 
-/// Abstract base class for all operation generators.
-/// Each generator translates a specific HLS Operation into FIRRTL
-/// using the provided FirrtlBuilder. Implementations must be
-/// stateless or internally synchronized.
 class OperationGenerator {
 public:
   virtual ~OperationGenerator() = default;
 
-  /// Human‑readable name used for registration and diagnostics.
+  /// Convert the given RHLS node to FIRRTL.
+  ///
+  /// @param node   The RHLS node to be translated.
+  /// @param builder The FIRRTL builder that accumulates generated operations.
+  virtual void generate(const rhls::Node *node,
+                       firrtl::Builder &builder) const = 0;
+
+  /// Human‑readable name used for diagnostics and error messages.
   virtual std::string name() const = 0;
-
-  /// Generate FIRRTL code for @p op using @p builder.
-  virtual void generate(const Operation &op,
-                        FirrtlBuilder &builder) const = 0;
-
-  /// Optional predicate indicating whether this generator can handle
-  /// the supplied operation. Default returns true; override only when a
-  /// generator supports a subset of operations.
-  virtual bool supports(const Operation &op) const { return true; }
 };
 
-} // namespace generators
-} // namespace rhls2firrtl
-} // namespace backend
-} // namespace hls
-} // namespace jlm
-
-#endif // JLM_HLS_BACKEND_RHLS2FIRRTL_GENERATORS_GENERATORINTERFACE_HPP
+} // namespace jlm::hls::rhls2firrtl
 ```
 
-*Key points*
-- `name()` must be unique across all generators.
-- Implementations should **never** modify global state; any needed caches must be protected internally.
+### Implementation Guidelines
+* **Stateless:** Generators should not store mutable state; any required configuration is passed via constructor arguments.
+* **Error handling:** Use `JLM_UNREACHABLE` (defined in `jlm/util/common.hpp`) for impossible code paths rather than throwing exceptions.
+* **Testing:** Each generator must have a dedicated unit test that builds a minimal RHLS fragment and checks the generated FIRRTL.
 
 ---
 
-## 2️⃣ GeneratorRegistry
-*File:* `jlm/hls/backend/rhls2firrtl/generators/GeneratorRegistry.hpp`  
-*Implementation:* `GeneratorRegistry.cpp`
+## 2️⃣ Thread‑Safe `GeneratorRegistry`
+
+The registry maps an RHLS opcode to its corresponding `OperationGenerator`. It is globally accessible via a singleton and protects registration/lookup with a mutex, allowing concurrent compilation of different translation units.
 
 ```cpp
-#ifndef JLM_HLS_BACKEND_RHLS2FIRRTL_GENERATORS_REGISTRY_HPP
-#define JLM_HLS_BACKEND_RHLS2FIRRTL_GENERATORS_REGISTRY_HPP
-
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <shared_mutex>
-#include <vector>
+// jlm/hls/backend/rhls2firrtl/generators/GeneratorRegistry.hpp
+#pragma once
 
 #include "GeneratorInterface.hpp"
+#include <unordered_map>
+#include <memory>
+#include <mutex>
 
-namespace jlm {
-namespace hls {
-namespace backend {
-namespace rhls2firrtl {
-namespace generators {
+namespace jlm::hls::rhls2firrtl {
 
-/// Thread‑safe singleton registry for OperationGenerators.
 class GeneratorRegistry {
 public:
-  /// Returns the global instance (Meyers singleton).
   static GeneratorRegistry &instance();
 
-  /// Register a new generator; takes ownership of @p gen.
-  void registerGenerator(std::unique_ptr<OperationGenerator> gen);
+  /// Register a generator for the given opcode.
+  ///
+  /// @param op   The RHLS opcode (e.g. rhls::Opcode::Add)
+  /// @param gen  A unique_ptr to a concrete OperationGenerator.
+  void registerGenerator(rhls::Opcode op,
+                         std::unique_ptr<OperationGenerator> gen);
 
-  /// Retrieve a generator by its name. Returns nullptr if not found.
-  OperationGenerator *get(const std::string &name) const;
-
-  /// List all registered generator names (useful for diagnostics).
-  std::vector<std::string> listGenerators() const;
+  /// Retrieve the generator for an opcode. Throws `std::runtime_error`
+  /// if the opcode has not been registered.
+  const OperationGenerator &getGenerator(rhls::Opcode op) const;
 
 private:
   GeneratorRegistry() = default;
-  ~GeneratorRegistry() = default;
-  GeneratorRegistry(const GeneratorRegistry &) = delete;
-  GeneratorRegistry &operator=(const GeneratorRegistry &) = delete;
-
-  mutable std::shared_mutex mutex_;
-  std::unordered_map<std::string, std::unique_ptr<OperationGenerator>> generators_;
+  mutable std::mutex mtx_;
+  std::unordered_map<rhls::Opcode, std::unique_ptr<OperationGenerator>> map_;
 };
 
-/// Convenience macro for registration in a translation unit.
-#define REGISTER_GENERATOR(GenType)                                   \
-  namespace {                                                         \
-  struct GenType##Registrar {                                         \
-    GenType##Registrar() {                                            \
-      jlm::hls::backend::rhls2firrtl::generators::GeneratorRegistry   \
-          ::instance()                                                \
-          .registerGenerator(std::make_unique<GenType>());            \
-    }                                                                 \
-  };                                                                  \
-  static GenType##Registrar global_##GenType##_registrar;             \
-  }
-
-} // namespace generators
-} // namespace rhls2firrtl
-} // namespace backend
-} // namespace hls
-} // namespace jlm
-
-#endif // JLM_HLS_BACKEND_RHLS2FIRRTL_GENERATORS_REGISTRY_HPP
+} // namespace jlm::hls::rhls2firrtl
 ```
 
-**Implementation (`GeneratorRegistry.cpp`)**
+The accompanying implementation (`GeneratorRegistry.cpp`) provides the thread‑safe logic.
+
+### Registration Pattern
+
+All generators are registered in a dedicated source file (e.g. `register_all_generators.cpp`). Example:
 
 ```cpp
 #include "GeneratorRegistry.hpp"
+#include "ArithmeticGenerator.hpp"
+// ... other generator includes ...
 
-namespace jlm {
-namespace hls {
-namespace backend {
-namespace rhls2firrtl {
-namespace generators {
-
-GeneratorRegistry &GeneratorRegistry::instance() {
-  static GeneratorRegistry instance;
-  return instance;
+void registerAllGenerators() {
+  auto &reg = GeneratorRegistry::instance();
+  reg.registerGenerator(rhls::Opcode::Add,
+                       std::make_unique<ArithmeticGenerator>());
+  // repeat for each opcode …
 }
-
-void GeneratorRegistry::registerGenerator(std::unique_ptr<OperationGenerator> gen) {
-  if (!gen)
-    return;
-  std::unique_lock lock(mutex_);
-  const auto name = gen->name();
-  generators_.emplace(name, std::move(gen));
-}
-
-OperationGenerator *GeneratorRegistry::get(const std::string &name) const {
-  std::shared_lock lock(mutex_);
-  auto it = generators_.find(name);
-  return (it != generators_.end()) ? it->second.get() : nullptr;
-}
-
-std::vector<std::string> GeneratorRegistry::listGenerators() const {
-  std::shared_lock lock(mutex_);
-  std::vector<std::string> names;
-  names.reserve(generators_.size());
-  for (const auto &pair : generators_)
-    names.push_back(pair.first);
-  return names;
-}
-
-} // namespace generators
-} // namespace rhls2firrtl
-} // namespace backend
-} // namespace hls
-} // namespace jlm
 ```
 
-*Design notes*
-- **Singleton** ensures a single source of truth; registration happens at static‑initialization time via `REGISTER_GENERATOR`.
-- **Thread safety:** writes (registration) acquire an exclusive lock; lookups use shared locks for concurrent reads.
-- Missing generators result in `nullptr`; callers should fall back to emitting `JLM_UNREACHABLE` with a clear error message.
+`registerAllGenerators()` is called from the backend’s initialization routine before any conversion starts.
 
 ---
 
-## 3️⃣ Migration Strategy
+## 3️⃣ Migration Strategy – `runtime_error` → `JLM_UNREACHABLE`
 
-| Step | Action |
-|------|--------|
-| **3.1** | Scan the existing `RhlsToFirrtlConverter.cpp` for conversion functions tied to specific operations. |
-| **3.2** | For each operation, create a concrete class inheriting from `OperationGenerator`. Implement `name()`, `generate(...)`, and optionally `supports(...)`. |
-| **3.3** | Add `REGISTER_GENERATOR(MyOpGen)` at the bottom of the new source file so it is auto‑registered. |
-| **3.4** | Replace direct calls in `RhlsToFirrtlConverter.cpp` with:<br>`if (auto *gen = GeneratorRegistry::instance().get(op.name())) gen->generate(op, builder); else JLM_UNREACHABLE("No generator for " + op.name());` |
-| **3.5** | Run the baseline test suite after each batch of migrations to catch regressions early (see Task 3 below). |
-| **3.6** | Update CI (`hls_refactor_ci.yml`) to compile the new `generators/` directory. |
+Existing code frequently uses:
 
----
+```cpp
+throw std::runtime_error("unreachable");
+```
 
-## 4️⃣ Checklist for Phase 0
+The project now prefers the macro defined in `jlm/util/common.hpp`:
 
-- [ ] Draft `00_INFRASTRUCTURE.md` (this file) and get team sign‑off.
-- [ ] Create directory `jlm/hls/backend/rhls2firrtl/generators/`.
-- [ ] Add `GeneratorInterface.hpp`, `GeneratorRegistry.hpp`, `GeneratorRegistry.cpp` with the contents above.
-- [ ] Verify the files compile (`make -C jlm/hls` or equivalent) after adding them.
-- [ ] Run existing HLS unit tests to ensure no regression introduced by the new headers.
-- [ ] Commit the changes on a dedicated branch (e.g., `infra-generator-setup`) and open a PR.
+```cpp
+#define JLM_UNREACHABLE \
+  ::jlm::util::unreachable(__FILE__, __LINE__)
+```
 
----
+### Steps
 
-## 5️⃣ FAQ
-
-**Q: Why use a singleton instead of passing the registry?**  
-A: The registry is required by many conversion passes. A global accessor avoids plumbing the object through numerous function signatures while still providing controlled access.
-
-**Q: Will the mutex be a performance bottleneck?**  
-A: Registration happens once at start‑up. Runtime lookups are read‑only and use a shared lock, which has negligible overhead compared to the actual code generation work.
-
-**Q: How do I add a new generator?**  
-A: Implement a class derived from `OperationGenerator`, place it in `jlm/hls/backend/rhls2firrtl/generators/`, and include `REGISTER_GENERATOR(MyGen);` at the end of the source file.
+1. **Search & Replace** – Replace all occurrences of `throw std::runtime_error(` with `JLM_UNREACHABLE;`.
+2. **Compile‑time Flag** – Introduce `ENABLE_LEGACY_EXCEPTIONS` to temporarily allow legacy code during the migration wave.
+3. **Gradual Removal** – After each module passes its unit tests, disable the flag for that module and remove any leftover includes of `<stdexcept>`.
+4. **Verification** – Run the full test suite (`make check`) after each batch of replacements.
 
 ---
 
-*All further refactoring phases (RVSDG→RHLS, RHLS→FIRRTL, optimization passes, etc.) must build on this infrastructure.*
+## 4️⃣ Build Integration
+
+* Add the `generators/` directory to the HLS backend source list in `jlm/hls/Makefile.sub`:
+
+```make
+HLS_SRCS += \
+    $(JLM_ROOT)/hls/backend/rhls2firrtl/generators/GeneratorInterface.cpp \
+    $(JLM_ROOT)/hls/backend/rhls2firrtl/generators/GeneratorRegistry.cpp \
+    # plus any concrete generator .cpp files
+```
+
+* Ensure the include path `-I$(JLM_ROOT)/hls/backend/rhls2firrtl` is present.
+* Update CI workflow `.github/workflows/hls_refactor_ci.yml` to run a dry‑build after the registry changes:
+
+```yaml
+- name: Build HLS backend
+  run: |
+    cd jlm/hls
+    make -f Makefile.sub
+```
+
+---
+
+## 5️⃣ Documentation Guidelines
+
+* Every concrete generator must have a Doxygen comment block describing:
+  * The RHLS operation(s) it handles.
+  * Any FIRRTL‑specific constraints.
+  * Example usage (optional).
+* Add a high‑level overview entry in this `00_INFRASTRUCTURE.md` linking to each generator’s documentation file.
+* The registry registration source (`register_all_generators.cpp`) should also be documented with a brief module description.
+
+---
+
+## 6️⃣ Checklist for Phase 0 Completion
+
+- [ ] Implement **OperationGenerator** interface (already present).
+- [ ] Implement **GeneratorRegistry** singleton with thread safety.
+- [ ] Write concrete generators for at least the arithmetic and memory opcodes as proof‑of‑concept.
+- [ ] Add registration code (`registerAllGenerators`) and invoke it during backend initialization.
+- [ ] Migrate all `runtime_error` usages to `JLM_UNREACHABLE`.
+- [ ] Update `jlm/hls/Makefile.sub` and CI workflow to compile new sources.
+- [ ] Document each generator and the registry according to the guidelines above.
+
+*All modifications are confined to `jlm/hls/` as required by the overall refactoring plan.*

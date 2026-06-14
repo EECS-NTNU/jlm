@@ -1,0 +1,29 @@
+{
+  "name": "jlm-container",
+  "build": {
+    "dockerfile": "/cluster/home/magnsj/Dockerfile.podman"
+  },
+  "runArgs": [
+    "--pid=host",
+    "--volume=/cluster/home/magnsj:/cluster/home/magnsj:rw"
+  ],
+  "remoteUser": "root",
+  "workspaceFolder": "/cluster/home/magnsj/jlm",
+  "workspaceMount": "source=/cluster/home/magnsj/jlm,target=/cluster/home/magnsj/jlm,type=bind,consistency=cached",
+  "containerEnv": {
+    "HOME": "/cluster/home/magnsj",
+    "USER": "magnsj",
+    "WORKSPACE_DIR": "/cluster/home/magnsj/jlm"
+  },
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "saoudrizwan.claude-dev"
+      ],
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/zsh"
+      }
+    }
+  }
+}
