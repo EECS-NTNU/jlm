@@ -81,7 +81,138 @@ TEST_F(FIRRTLRoundtripTest, ControlFlow) {
 
 ### 2.3 Output Equivalence Tests
 
-**Goal**: Ensure refactored code generates identical FIRRTL to original
+**Goal**: Ensure refactored code generates semantically equivalent FIRRTL to original
+
+#### FIRRTL Normalization Strategy
+
+FIRRTL output may differ syntactically (whitespace, comments, ordering) while being semantically identical. The normalization strategy:
+
+| Aspect | Should Match | Rationale |
+|--------|--------------|-----------|
+| Operation names and types | Yes | Semantic equivalence |
+| Bit widths | Yes | Hardware semantics |
+| Module structure | Yes | Top-level module hierarchy |
+| Register names (without prefix) | No | Internal naming can vary |
+| Whitespace/comments | N/A | Not semantically meaningful |
+
+**Normalization Function**:
+```cpp
+// Normalize FIRRTL for comparison
+std::string NormalizeFIRRTL(const std::string& firrtl) {
+    // 1. Remove comments and empty lines
+    // 2. Canonicalize whitespace (single spaces, no trailing)
+    // 3. Sort operation definitions alphabetically by module
+    // 4. Strip line numbers from debug info
+    
+    std::regex commentRegex("//[^\\n]*");
+    std::string normalized = std::regex_replace(firrtl, commentRegex, "");
+    
+    // Further normalization as needed...
+    return normalized;
+}
+```
+
+#### Semantic Equivalence Verification
+
+**Important**: FIRRTL is **not deterministic** for certain operations:
+- Commutative operations: `add(a, b)` == `add(b, a)`
+- Memory addressing order may vary
+- Internal wire naming can differ
+
+**Recommended Approach**:
+
+1. **String comparison with normalization** (fast, good for basic changes)
+   ```cpp
+   EXPECT_EQ(NormalizeFIRRTL(reference), NormalizeFIRRTL(current));
+   ```
+
+2. **AST comparison** (more robust, requires FIRRTL parser)
+   ```cpp
+   // Parse both FIRRTL to MLIR AST
+   auto ast1 = parseFIRRTL(reference);
+   auto ast2 = parseFIRRTL(current);
+   
+   // Compare AST structure (ignoring location info, names)
+   EXPECT_TRUE(AstEqual(ast1, ast2));
+   ```
+
+3. **Circuit equivalence** (gold standard, via CIRCT's equivalences)
+   ```cpp
+   // Use CIRCT's equivalence checking passes
+   auto circtCtx = createCIRCTContext();
+   bool equivalent = checkCircuitEquivalence(firrtl1, firrtl2);
+   EXPECT_TRUE(equivalent);
+   ```
+
+#### Test Examples
+
+```cpp
+TEST_F(EquivalenceTest, AdditionGeneratesSameFIRRTL) {
+    auto module = CreateAddTestModule();
+    auto* addNode = FindAddNode(module);
+    
+    auto reference = GetReferenceOutput(addNode);
+    auto current = GetCurrentOutput(addNode);
+    
+    // FIRRTL should be semantically equivalent after normalization
+    EXPECT_EQ(NormalizeFIRRTL(reference), NormalizeFIRRTL(current));
+}
+
+TEST_F(EquivalenceTest, CommutativeOperationsMatch) {
+    // a + b and b + a should produce equivalent circuits
+    auto module1 = CreateAddModule(a, b);
+    auto module2 = CreateAddModule(b, a);
+    
+    auto output1 = GenerateFIRRTL(module1);
+    auto output2 = GenerateFIRRTL(module2);
+    
+    EXPECT_EQ(NormalizeFIRRTL(output1), NormalizeFIRRTL(output2));
+}
+
+TEST_F(EquivalenceTest, GammaConversion) {
+    auto module = CreateGammaTestModule();
+    
+    auto reference = GetReferenceOutput(module);
+    auto current = GetCurrentOutput(module);
+    
+    // Both should generate same mux-based FIRRTL
+    EXPECT_EQ(NormalizeFIRRTL(reference), NormalizeFIRRTL(current));
+}
+```
+
+#### Baseline Storage
+
+Store baseline FIRRTL outputs for comparison:
+
+```bash
+# Generate and store baseline (pre-refactor)
+./scripts/verify-baseline.sh --store-firrtl /tmp/baseline-firrtl/
+
+# Compare against baseline after refactoring
+./scripts/run-hls-baseline.sh --compare /tmp/baseline-firrtl/
+```
+
+#### When Equivalence May Differ (Accepted)
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Generator reordering operations | Normalization must handle |
+| New helper functions added | May change wire names but not semantics |
+| Internal register naming changes | Acceptable if functionally identical |
+
+---
+
+### 2.4 Formal Equivalence Verification (Optional - Advanced)
+
+For critical operations, consider using formal equivalence checking:
+
+```bash
+# Use Yosys for formal equivalence checking
+yosys -p "read_firrtl reference.fir; circuit_to_equivalent; read_firrtl current.fir; equivalence_check" 
+
+# Or use CIRCT's equivalence passes
+circt-opt --equivalence-checking reference.fir current.fir
+```
 
 ```cpp
 // integration/EquivalenceTests.cpp

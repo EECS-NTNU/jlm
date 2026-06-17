@@ -37,9 +37,23 @@ See `jlm/llvm/opt/alias-analyses/AgnosticModRefSummarizer.hpp` for examples.
 #### 3. Test Fixtures
 Use `llvm::LlvmRvsdgModule` as the primary module type for HLS tests.
 
-#### 4. Error Handling
-Use `JLM_UNREACHABLE("message")` instead of exceptions for unrecoverable errors.
-Note: Some existing code may use `throw std::logic_error()`; prefer `JLM_UNREACHABLE` in new code.
+#### 4. Error Handling Strategy (Updated June 14, 2026)
+
+**During Migration Phase**: Use `std::runtime_error` with helpful error messages:
+```cpp
+// For missing generators during refactoring
+throw std::runtime_error("No generator registered for: " + node->debug_string() +
+                         ". Available: Add, Sub, Mux");
+```
+
+**After Migration Complete**: Use `JLM_UNREACHABLE` for truly impossible code paths.
+
+This approach provides:
+- Graceful error handling (no compiler crash)
+- Helpful messages listing available operations
+- Developer-friendly during migration phase
+
+See Phase 0 (Infrastructure) and Phase 3 (rhls2firrtl) for full details.
 
 #### 5. Namespace Organization
 - Use `namespace jlm::hls` for HLS‑specific code
@@ -211,7 +225,7 @@ This phase addresses critical issues identified in the analysis:
 
 ---
 
-### Phase 6: End‑to‑End Validation (Ongoing)
+### Phase 6: Test Infrastructure (In Progress)
 **Priority**: HIGH - Quality assurance  
 - [ ] Document testing best practices
 - [ ] Create test fixtures for common patterns
@@ -243,6 +257,23 @@ This phase addresses critical issues identified in the analysis:
 
 ---
 
+## Local Testing Strategy (Updated June 14, 2026)
+
+### Pre-Commit Verification
+Before merging any changes, run:
+
+```bash
+# Run local test suite
+./scripts/verify-local.sh
+
+# Check for regressions against baseline
+./scripts/check-regression.sh
+```
+
+See Phase 1 and Phase 7 for script requirements.
+
+---
+
 ## Updated Phase Ordering
 
 To improve logical flow the phases are renumbered as follows:
@@ -254,7 +285,7 @@ To improve logical flow the phases are renumbered as follows:
 | 3️⃣ | 3 (rhls2firrtl) | Extract operation generators |
 | 4️⃣ | 4 (Optimization Passes) | Test and document optimizations |
 | 5️⃣ | 5 (IR Layer) | Split `hls.hpp` into modules |
-| 6️⃣ | 6 (Test Infrastructure) | Establish fixtures, patterns, integration tests |
+| 6️⃣ | 6 (Test Infrastructure) | Test fixtures, patterns, integration tests, CI verification |
 | 7️⃣ | 9 (Pre‑Refactor Benchmarking) | Capture baseline performance & coverage before any changes |
 | 8️⃣ | 8 (End‑to‑End Validation) | FIRRTL→Verilog lowering, Verilator simulation, regression checks |
 
@@ -289,11 +320,19 @@ All cross‑references in the individual phase documents should be updated accor
 
 ## Success Criteria
 
-* All phases completed according to the renumbered order.
-* CI pipeline runs baseline, performance, and E2E jobs on every PR.
-* No functional regressions; test coverage ≥ 90 % for HLS components.
-* Documentation and dashboards are up‑to‑date.
+### Local Testing Requirements
+All phases require local verification before changes are committed:
+
+```
+Before each commit:
+  ./scripts/verify-local.sh     # Run local test suite
+
+Baseline capture (before first change):
+  ./scripts/verify-baseline.sh  # Record baseline metrics
+```
+
+See Phase 1 (Setup & Verification) for setup instructions.
 
 ---
 
-*This updated overview reflects the refined phase ordering and additional process improvements required to ensure a smooth, reviewable refactoring of the HLS backend.*
+*This updated overview reflects the refined phase ordering, local testing focus, and unified error handling strategy required to ensure a smooth, reviewable refactoring of the HLS backend.*

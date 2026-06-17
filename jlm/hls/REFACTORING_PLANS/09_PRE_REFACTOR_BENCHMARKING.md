@@ -105,19 +105,27 @@ genhtml /tmp/coverage-baseline.info --output-directory /tmp/coverage-report-base
 
 ---
 
-## 3. Verification Checklist (Pre-Refactoring)
+## 3. Local Verification Checklist (Pre-Refactoring)
 
-Before any refactoring work begins, verify:
+Before any refactoring work begins, verify using local testing:
 
 | Check | Command | Pass Criteria |
 |-------|---------|---------------|
-| Unit tests pass | `./build/run-libhls-tests` | 100% tests pass |
-| External suite passes | `./scripts/run-hls-test.sh --parallel N` | All kernels match golden |
+| Unit tests pass | `./scripts/verify-local.sh` | 100% tests pass |
+| Baseline recorded | `./scripts/verify-baseline.sh` | Metrics captured in /tmp/baseline/ |
 | FIRRTL generated | `jlm-hls input.ll > output.fir` | No errors, valid FIRRTL |
-| Verilator works | `verilator --version` | Available and functional |
-| Coverage data captured | `lcov` report exists | Coverage baseline saved |
+| Coverage data captured | `make test_coverage` | Coverage baseline saved |
 
----
+**Local Testing Workflow:**
+```bash
+# Capture baseline before any changes
+./scripts/verify-baseline.sh
+
+# Run after each refactoring step to verify no regressions
+./scripts/verify-local.sh
+```
+
+Note: CI pipeline is not required - all verification runs locally.
 
 ## 4. Pre-Refactoring Sign-Off
 

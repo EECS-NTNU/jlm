@@ -65,11 +65,56 @@ Analysis identified the following issues with using `JLM_UNREACHABLE`:
    ```
 
 #### Migration Strategy
-- During refactoring, both old MlirGen* methods and new generators coexist
-- Use runtime_error during transition phase
-- Once all operations have generators, switch to JLM_UNREACHABLE for true unimplemented cases
 
-**Note**: See Phase 0 for complete generator interface implementation.
+The rhls2firrtl refactoring uses a **dual-implementation migration pattern**:
+
+1. **Phase 3.1 - Generator Interface**: Create OperationGenerator base class with runtime_error
+   - Define interface: `generate()`, `name()`, `GetSupportedOperations()`
+   - Implement GeneratorRegistry with thread-safe lookup
+   - Each generator throws std::runtime_error for unimplemented operations
+
+2. **Phase 3.2-3.X - Incremental Migration**: Extract operations to generators one group at a time
+   - Create wrapper generator that delegates to existing MlirGen* method
+   - Add tests for the new generator
+   - Update RhlsToFirrtlConverter.cpp to use registry for each operation type
+
+3. **Phase 3.Final - Cleanup**: Remove old code after all generators are in place
+   - Once all operations have generators, remove old MlirGen* methods from RhlsToFirrtlConverter.cpp
+   - Switch any internal JLM_UNREACHABLE calls to proper error handling
+
+#### Generator Registration Pattern
+
+```cpp
+// generators/register_all_generators.cpp
+#include "GeneratorRegistry.hpp"
+#include "ArithmeticOpGenerator.hpp"
+
+void registerAllGenerators() {
+  auto &reg = GeneratorRegistry::instance();
+  reg.registerGenerator(rhls::Opcode::Add, 
+                       std::make_unique<ArithmeticOpGenerator>());
+}
+```
+
+#### Coexistence During Migration
+
+During Phase 3, both patterns may coexist:
+
+| Old Pattern (MlirGen*) | New Pattern (Generator) |
+|------------------------|-------------------------|
+| `RhlsToFirrtlConverter.cpp` large switch statement | `GeneratorRegistry` lookup |
+| `JLM_UNREACHABLE("not implemented")` in converter | `throw runtime_error(...)` in generator |
+
+**Migration Trigger**: Switch from MlirGen* to generators when:
+1. A generator for that operation type has tests passing
+2. The converter uses the registry instead of direct calls
+
+#### Migration Checklist (Before Removing Old Code)
+
+- [ ] All operations have registered generators
+- [ ] Test suite passes with new generators only
+- [ ] No runtime_error exceptions during full pipeline execution
+- [ ] FIRRTL output matches baseline (see Phase 8 for verification)
 
 ### Operation Coverage in RhlsToFirrtlConverter.cpp
 
@@ -303,6 +348,32 @@ public:
 ---
 
 ## 4. Implementation Tasks
+
+### Local Self‑Contained Test Harness
+
+To verify that changes do not break existing behavior without requiring an external CI system, the following local scripts are provided:
+
+- `scripts/update_firrtl_golden.sh` – builds the project and regenerates golden FIRRTL files for all HLS converter unit tests.
+- `scripts/run_hls_baseline.sh` – builds the project, runs each test binary, compares its FIRRTL output against the stored gold files, and exits with a non‑zero status on any mismatch.
+- (Optional) `scripts/check_performance.sh` – measures compile time and binary size for a small benchmark and ensures they stay within a 5 % tolerance of the recorded baseline.
+
+These scripts are invoked from the repository root:
+
+```bash
+chmod +x scripts/*.sh   # make executable once
+./scripts/update_firrtl_golden.sh   # run only when intentional changes are made
+./scripts/run_hls_baseline.sh       # run after each refactoring step to catch regressions
+```
+
+Running `run_hls_baseline.sh` will output either:
+
+```
+✅ All FIRRTL outputs match golden files.
+```
+
+or a diff for any failing test, causing the script to exit with status 1. This provides immediate feedback during development and can be incorporated into pre‑commit hooks.
+
+The test harness ensures functional equivalence of the RHLS→FIRRTL conversion before and after generator integration.
 
 ### Task 3.1: Create generators/ Directory Structure
 

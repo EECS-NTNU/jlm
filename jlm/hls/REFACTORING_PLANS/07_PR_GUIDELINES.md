@@ -398,40 +398,52 @@ git commit -m "hls/ir: Extract BundleType to types module
 
 ---
 
-## 7. PR Review Best Practices
+## 7. Local Verification Before Merging
 
-### For Authors
-1. **Title should be descriptive**: "hls/rhls2firrtl: Extract arithmetic operations" not "Refactor"
+### Pre-Merge Checklist (Run Locally)
 
-2. **First line is summary**: Keep first line under 70 characters, describe what changed
+Before merging any PR, run these local verification steps:
 
-3. **Body explains why**: Reference refactoring plan documents:
-   ```
-   Refactoring as described in jlm/hls/REFACTORING_PLANS/03_RHLS2FIRRTL_REFACTORING.md
-   ```
-
-4. **Link to related PRs**: If multiple PRs are related, reference them
-
-5. **Check independence**: Before submitting, verify all dependency PRs are merged
-
-### For Reviewers
-1. **Check build first**: Does it compile without warnings?
+1. **Build Verification**
    ```bash
    make clean && make -j$(nproc)
    ```
+   Expected: No warnings or errors
 
-2. **Run tests**: 
+2. **Unit Test Suite**
    ```bash
    ./build/run-libhls-tests --gtest_brief=0
    ```
+   Expected: 100% tests pass
 
-3. **Verify no functional changes**: 
-   - Test output should be identical (if refactoring only)
-   - Check git diff for unintended code modifications
+3. **Functional Equivalence**
+   ```bash
+   # Regenerate FIRRTL and compare to baseline
+   cd /tmp/firrtl-baseline
+   md5sum *.fir | diff - firrtl-md5.txt
+   ```
+   Expected: No differences
 
-4. **Check PR size**: If >500 lines, consider requesting split into smaller PRs
+4. **Performance Threshold**
+   ```bash
+   # Compilation should not be >30% slower than baseline
+   ./scripts/verify-performance.sh
+   ```
+   Expected: Within budgeted thresholds
 
-5. **Check independence**: Verify dependency PRs are already merged
+### PR Author Checklist
+- [ ] Title is descriptive (e.g., "hls/rhls2firrtl: Extract arithmetic operations")
+- [ ] First line under 70 characters
+- [ ] Body explains why with references to phase docs
+- [ ] Related PRs are linked
+- [ ] All dependency PRs are merged
+
+### PR Reviewer Checklist  
+- [ ] Build compiles without warnings
+- [ ] All tests pass locally (`./scripts/verify-local.sh`)
+- [ ] No functional changes introduced (output matches baseline)
+- [ ] PR size <500 lines
+- [ ] Dependencies already merged
 
 ---
 
@@ -584,7 +596,7 @@ Split if file >300 lines OR has >5 distinct components
 - [ ] New tests achieve ≥ 80 % line coverage for exercised code.
 - [ ] Updated `CMakeLists.txt` or Makefile entries added.
 - [ ] Documentation in `docs/Testing.md` updated if new fixtures/utilities introduced.
-- [ ] CI pipeline passes on the PR.
+- [ ] Local verification passes (`./scripts/verify-local.sh`)
 
 ### Dependency Notes
 - These test PRs **must be merged after** their corresponding refactoring PRs that introduce the code they exercise (e.g., generator PRs before generator tests).

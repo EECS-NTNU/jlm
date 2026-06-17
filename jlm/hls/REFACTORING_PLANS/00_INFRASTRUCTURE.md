@@ -15,6 +15,8 @@ The **OperationGenerator** is a pure‑virtual base class that encapsulates the 
 
 #include "rhls/Node.hpp"
 #include "firrtl/Builder.hpp"
+#include <vector>
+#include <stdexcept>
 
 namespace jlm::hls::rhls2firrtl {
 
@@ -27,10 +29,13 @@ public:
   /// @param node   The RHLS node to be translated.
   /// @param builder The FIRRTL builder that accumulates generated operations.
   virtual void generate(const rhls::Node *node,
-                       firrtl::Builder &builder) const = 0;
+                        firrtl::Builder &builder) const = 0;
 
   /// Human‑readable name used for diagnostics and error messages.
   virtual std::string name() const = 0;
+
+  /// List of supported operation names for diagnostic purposes.
+  virtual std::vector<const char*> getSupportedOperations() const = 0;
 };
 
 } // namespace jlm::hls::rhls2firrtl
@@ -38,7 +43,7 @@ public:
 
 ### Implementation Guidelines
 * **Stateless:** Generators should not store mutable state; any required configuration is passed via constructor arguments.
-* **Error handling:** Use `JLM_UNREACHABLE` (defined in `jlm/util/common.hpp`) for impossible code paths rather than throwing exceptions.
+* **Error handling during migration:** Use `std::runtime_error` with helpful messages listing supported operations. Once all operations are implemented, switch to `JLM_UNREACHABLE`.
 * **Testing:** Each generator must have a dedicated unit test that builds a minimal RHLS fragment and checks the generated FIRRTL.
 
 ---
@@ -105,27 +110,76 @@ void registerAllGenerators() {
 
 ---
 
-## 3️⃣ Migration Strategy – `runtime_error` → `JLM_UNREACHABLE`
+## 3️⃣ Error Handling Strategy
 
-Existing code frequently uses:
+### For Operation Generators (Refactoring Phase)
+
+During refactoring, use `std::runtime_error` for missing generators to provide helpful error messages:
 
 ```cpp
-throw std::runtime_error("unreachable");
+class GeneratorRegistry {
+public:
+  const OperationGenerator &getGenerator(rhls::Opcode op) const {
+    auto it = map_.find(op);
+    if (it == map_.end()) {
+      std::string msg = "No generator registered for opcode: ";
+      // Include list of supported operations in error message
+      throw std::runtime_error(msg + getOperationName(op));
+    }
+    return *(it->second);
+  }
+};
 ```
 
-The project now prefers the macro defined in `jlm/util/common.hpp`:
+**Benefits:**
+- Graceful error handling (no compiler crash)
+- Helpful messages listing available generators
+- Developer-friendly during migration phase
+
+### For Production Code (After Migration Complete)
+
+Once all operations have generators, switch to `JLM_UNREACHABLE` for truly impossible code paths:
 
 ```cpp
+// Only use JLM_UNREACHABLE when ALL operations are implemented
 #define JLM_UNREACHABLE \
   ::jlm::util::unreachable(__FILE__, __LINE__)
 ```
 
-### Steps
+### Migration Path
 
-1. **Search & Replace** – Replace all occurrences of `throw std::runtime_error(` with `JLM_UNREACHABLE;`.
-2. **Compile‑time Flag** – Introduce `ENABLE_LEGACY_EXCEPTIONS` to temporarily allow legacy code during the migration wave.
-3. **Gradual Removal** – After each module passes its unit tests, disable the flag for that module and remove any leftover includes of `<stdexcept>`.
-4. **Verification** – Run the full test suite (`make check`) after each batch of replacements.
+This error handling strategy applies to **all phases that introduce new operation generators**:
+
+1. **Phase 0**: Implement generator interface with `runtime_error` for missing operations
+   - All generators throw `std::runtime_error` when called with unimplemented operations
+   - Error message includes list of supported operations via `GetSupportedOperations()`
+
+2. **Phases 3-7**: Extract existing operations to generators; use `runtime_error` during transition
+   - Both old MlirGen* methods and new generators can coexist
+   - Use runtime_error until ALL operations have corresponding generators
+
+3. **Final step**: After all ops have generators, add JLM_UNREACHABLE for truly impossible cases
+   - Only use JLM_UNREACHABLE when the operation itself is unimplemented in the RHLS IR
+   - This is different from "no generator registered yet" which uses runtime_error
+
+#### When to Use Each Error Type
+
+| Scenario | Error Type | Rationale |
+|----------|------------|-----------|
+| Generator called for unsupported operation during migration | `std::runtime_error` | Graceful failure, helpful error message |
+| Generator called for truly unimplemented RHLS operation | `JLM_UNREACHABLE` | Indicates bug in RHLS IR design |
+| Internal invariant violation in generator | `JLM_ASSERT` or `JLM_UNREACHABLE` | Programming error |
+
+**Note**: This approach is consistent with Phase 3 (rhls2firrtl) which specifies runtime_error during the migration phase.
+
+#### Migration Checklist
+
+Before switching from runtime_error to JLM_UNREACHABLE, verify:
+
+1. All operations in RhlsToFirrtlConverter.cpp have corresponding generators
+2. Test suite passes with all new generators registered
+3. No runtime_error exceptions thrown during full pipeline execution
+4. Code review confirms no unhandled operation cases remain
 
 ---
 
@@ -165,12 +219,11 @@ HLS_SRCS += \
 
 ## 6️⃣ Checklist for Phase 0 Completion
 
-- [ ] Implement **OperationGenerator** interface (already present).
-- [ ] Implement **GeneratorRegistry** singleton with thread safety.
-- [ ] Write concrete generators for at least the arithmetic and memory opcodes as proof‑of‑concept.
-- [ ] Add registration code (`registerAllGenerators`) and invoke it during backend initialization.
-- [ ] Migrate all `runtime_error` usages to `JLM_UNREACHABLE`.
-- [ ] Update `jlm/hls/Makefile.sub` and CI workflow to compile new sources.
-- [ ] Document each generator and the registry according to the guidelines above.
+- [ ] Implement **OperationGenerator** interface with runtime_error migration strategy
+- [ ] Implement **GeneratorRegistry** singleton with thread safety
+- [ ] Write concrete generators for at least the arithmetic and memory opcodes as proof‑of‑concept
+- [ ] Add registration code (`registerAllGenerators`) and invoke it during backend initialization
+- [ ] Create local verification scripts (`./scripts/verify-baseline.sh`, `./scripts/verify-local.sh`)
+- [ ] Update `jlm/hls/Makefile.sub` to compile new sources (local alternative to CI)
 
 *All modifications are confined to `jlm/hls/` as required by the overall refactoring plan.*

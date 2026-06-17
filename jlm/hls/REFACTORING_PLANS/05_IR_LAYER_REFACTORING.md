@@ -54,9 +54,9 @@ jlm/hls/ir/
 
 ---
 
-## 2. Refactoring Goals
+## 2. Refactoring Goals (Updated)
 
-### Phase 5.1: Module Division
+### Phase 5.1 – Module Division (New Structure)
 
 #### Goal
 Split hls.hpp into focused modules:
@@ -64,7 +64,7 @@ Split hls.hpp into focused modules:
 - Clear module dependencies
 - Consistent naming and organization
 
-#### New Directory Structure
+#### Revised Directory Layout
 ```
 jlm/hls/ir/
 ├── types/                    # NEW: Type definitions
@@ -311,9 +311,73 @@ TEST(LoopNode, AddLoopVariable) {
 
 ---
 
-## 6. Files to Create/Modify
+## 6. Build Integration: Makefile.sub Updates
 
-### New Files to Create
+### Task 5.7: Add New Source Files to Build System
+
+When creating the new module structure, update `jlm/hls/Makefile.sub`:
+
+```make
+# Add new source directories for IR modules
+JLM_HLS_IR_SOURCES += \
+    $(JLM_ROOT)/hls/ir/types/BundleType.cpp \
+    $(JLM_ROOT)/hls/ir/types/TriggerType.cpp \
+    $(JLM_ROOT)/hls/ir/operations/BranchOperation.cpp \
+    $(JLM_ROOT)/hls/ir/operations/ForkOperation.cpp \
+    $(JLM_ROOT)/hls/ir/operations/MuxOperation.cpp \
+    $(JLM_ROOT)/hls/ir/nodes/LoopNode.cpp \
+    # ... add all new .cpp files
+
+# Update include paths to find module headers
+JLM_HLS_INCLUDES += \
+    -I$(JLM_ROOT)/hls/ir/types \
+    -I$(JLM_ROOT)/hls/ir/operations \
+    -I$(JLM_ROOT)/hls/ir/nodes
+
+# Link new sources into test binary
+run-libhls-tests_SOURCES += \
+    $(JLM_HLS_IR_SOURCES) \
+    # ... add all new test files
+```
+
+### Build Verification Checklist
+
+After making Makefile.sub updates:
+
+- [ ] `make -n` shows correct source files included
+- [ ] No "undefined reference" errors at link time
+- [ ] Include paths resolve correctly (no missing header errors)
+- [ ] New module tests compile and run
+
+### Dependency Tracking for IR Modules
+
+**Important**: Some modules depend on others:
+```
+types/BundleType.hpp → rvsdg::Type (already available)
+operations/BranchOperation.hpp → types/
+operations/ForkOperation.hpp → operations/BranchOperation
+nodes/LoopNode.hpp → operations/, types/
+```
+
+When updating `Makefile.sub`, ensure correct build order by grouping:
+
+```make
+# Group sources by dependency level
+JLM_HLS_IR_LEVEL1_SOURCES = \
+    $(JLM_ROOT)/hls/ir/types/BundleType.cpp \
+    $(JLM_ROOT)/hls/ir/types/TriggerType.cpp
+
+JLM_HLS_IR_LEVEL2_SOURCES = \
+    $(JLM_ROOT)/hls/ir/operations/BranchOperation.cpp \
+    $(JLM_ROOT)/hls/ir/operations/ForkOperation.cpp
+
+JLM_HLS_IR_LEVEL3_SOURCES = \
+    $(JLM_ROOT)/hls/ir/nodes/LoopNode.cpp
+```
+
+### Files to Create/Modify
+
+#### New Files to Create
 | File | Purpose |
 |------|---------|
 | `ir/types/BundleType.hpp/cpp` | Bundle type implementation |
@@ -324,11 +388,12 @@ TEST(LoopNode, AddLoopVariable) {
 | `ir/nodes/LoopNode.hpp/cpp` | Loop node class |
 | Tests for each module |
 
-### Existing Files to Modify
+#### Existing Files to Modify
 | File | Change |
 |------|--------|
 | `ir/hls.hpp` | Refactor to include modules |
 | `ir/hls.cpp` | Update includes |
+| `jlm/hls/Makefile.sub` | Add new source files and include paths |
 
 ---
 

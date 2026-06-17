@@ -6,13 +6,22 @@
 
 namespace jlm {
 namespace hls {
+
+class RhlsToFirrtlConverter;
+
+} // namespace hls
+} // namespace jlm
+
+
+namespace jlm {
+namespace hls {
 namespace backend {
 namespace rhls2firrtl {
 namespace generators {
 
 /// Abstract base class for all operation generators.
 /// Each generator translates a specific HLS Operation into FIRRTL
-/// using the provided FirrtlBuilder. Implementations must be
+/// using the provided RhlsToFirrtlConverter context. Implementations must be
 /// stateless or internally synchronized.
 class OperationGenerator {
 public:
@@ -21,14 +30,17 @@ public:
   /// Human‑readable name used for registration and diagnostics.
   virtual std::string name() const = 0;
 
-  /// Generate FIRRTL code for @p op using @p builder.
-  virtual void generate(const Operation &op,
-                        FirrtlBuilder &builder) const = 0;
+  /// Generate FIRRTL code for the given node using the converter context.
+  ///
+  /// @param converter The RhlsToFirrtlConverter providing helper methods
+  /// @param node      The simple node to generate FIRRTL for
+  virtual void generate(const rvsdg::SimpleNode *node,
+                        RhlsToFirrtlConverter &converter) const = 0;
 
   /// Optional predicate indicating whether this generator can handle
   /// the supplied operation. Default returns true; override only when a
   /// generator supports a subset of operations.
-  virtual bool supports(const Operation &op) const { return true; }
+  virtual bool supports(const rvsdg::Operation &op) const { return true; }
 };
 
 } // namespace generators
