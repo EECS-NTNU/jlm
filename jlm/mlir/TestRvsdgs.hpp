@@ -121,6 +121,38 @@ public:
   jlm::rvsdg::SimpleNode * store;
 };
 
+/** \brief MemoryHoistBarrierTest class
+ *
+ * This class sets up an RVSDG representing the following function:
+ *
+ * \code{.c}
+ *   uint32_t f(uint32_t * p)
+ *   {
+ *     opaque();  // some I/O state producing operation
+ *     return *p;
+ *   }
+ * \endcode
+ *
+ * The address of the load is routed through a \ref jlm::llvm::MemoryHoistBarrierOperation along
+ * with an I/O state, which sequentializes the memory operation consuming the address after the
+ * producer of the I/O state. This is the shape the LLVM frontend creates for every non-volatile
+ * memory operation, so the barrier has to survive the MLIR roundtrip unchanged - including its
+ * dereferenceable size.
+ */
+class MemoryHoistBarrierTest final : public jlm::llvm::RvsdgTest
+{
+private:
+  std::unique_ptr<jlm::llvm::LlvmRvsdgModule>
+  SetupRvsdg() override;
+
+public:
+  jlm::rvsdg::LambdaNode * lambda;
+
+  jlm::rvsdg::SimpleNode * barrier;
+
+  jlm::rvsdg::SimpleNode * load;
+};
+
 }
 
 #endif

@@ -92,8 +92,11 @@ public:
 
 /**
  * A \ref MemoryHoistBarrierOperation is used to sequentialize memory operations, such as
- * \ref LoadNonVolatileOperation or \ref StoreNonVolatileOperation, after other IO state operations.
- * It has no equivalent in LLVM.
+ * \ref LoadNonVolatileOperation, \ref StoreNonVolatileOperation or \ref MemCpyNonVolatileOperation,
+ * after other IO state operations. It has no equivalent in LLVM.
+ *
+ * \note Currently the LLVM frontend applies it only to non-volatile load and store operations, but
+ *       it is meant for any memory operation, including memory copies.
  *
  * Example:
  *

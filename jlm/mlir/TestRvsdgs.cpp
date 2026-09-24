@@ -4,6 +4,7 @@
  */
 
 #include <jlm/llvm/ir/operators/IntegerOperations.hpp>
+#include <jlm/llvm/ir/operators/IOBarrier.hpp>
 #include <jlm/llvm/ir/operators/lambda.hpp>
 #include <jlm/llvm/ir/operators/Load.hpp>
 #include <jlm/llvm/ir/operators/Store.hpp>
@@ -157,6 +158,49 @@ StoreVolatileTest::SetupRvsdg()
 
   this->lambda = fct;
   this->store = &storeNode;
+
+  return module;
+}
+
+std::unique_ptr<jlm::llvm::LlvmRvsdgModule>
+MemoryHoistBarrierTest::SetupRvsdg()
+{
+  using namespace jlm::llvm;
+  using namespace jlm::rvsdg;
+
+  auto fcttype = rvsdg::FunctionType::Create(
+      { IOStateType::Create(), MemoryStateType::Create(), PointerType::Create() },
+      { jlm::rvsdg::BitType::Create(32), IOStateType::Create(), MemoryStateType::Create() });
+
+  auto module = LlvmRvsdgModule::Create(jlm::util::FilePath(""), "", "");
+  auto graph = &module->Rvsdg();
+
+  auto fct = rvsdg::LambdaNode::Create(
+      graph->GetRootRegion(),
+      llvm::LlvmLambdaOperation::Create(fcttype, "f", Linkage::externalLinkage));
+  auto iOStateArgument = fct->GetFunctionArguments()[0];
+  auto memoryStateArgument = fct->GetFunctionArguments()[1];
+  auto pointerArgument = fct->GetFunctionArguments()[2];
+
+  // Route the address through the barrier, just like the LLVM frontend does for a non-volatile
+  // load that is sequentialized behind an I/O state operation. The dereferenceable size is
+  // non-zero so that it survives the roundtrip verifiably.
+  auto & barrierNode =
+      MemoryHoistBarrierOperation::createNode(*pointerArgument, *iOStateArgument, 4);
+
+  auto load = LoadNonVolatileOperation::Create(
+      barrierNode.output(0),
+      { memoryStateArgument },
+      BitType::Create(32),
+      4);
+
+  fct->finalize({ load[0], iOStateArgument, load[1] });
+
+  GraphExport::Create(*fct->output(), "f");
+
+  this->lambda = fct;
+  this->barrier = &barrierNode;
+  this->load = rvsdg::TryGetOwnerNode<SimpleNode>(*load[0]);
 
   return module;
 }

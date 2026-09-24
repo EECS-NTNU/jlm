@@ -840,6 +840,14 @@ MlirToJlmConverter::ConvertOperation(
         std::vector(inputs.begin(), inputs.end()),
         ConvertType(type)));
   }
+  else if (
+      auto MemoryHoistBarrierOp = ::mlir::dyn_cast<::mlir::jlm::MemoryHoistBarrier>(&mlirOperation))
+  {
+    return rvsdg::outputs(&llvm::MemoryHoistBarrierOperation::createNode(
+        *inputs[0],
+        *inputs[1],
+        MemoryHoistBarrierOp.getDereferenceableSize()));
+  }
   else if (auto MallocOp = ::mlir::dyn_cast<::mlir::jlm::Malloc>(&mlirOperation))
   {
     return outputs(&llvm::MallocOperation::createNode(*inputs[0], *inputs[1]));

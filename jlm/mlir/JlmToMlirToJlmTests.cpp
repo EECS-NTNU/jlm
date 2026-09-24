@@ -1479,6 +1479,119 @@ TEST(JlmToMlirToJlmTests, TestIOBarrier)
   }
 }
 
+TEST(JlmToMlirToJlmTests, TestMemoryHoistBarrier)
+{
+  using namespace jlm::llvm;
+  using namespace mlir::rvsdg;
+
+  const size_t dereferenceableSize = 4;
+
+  auto rvsdgModule = LlvmRvsdgModule::Create(jlm::util::FilePath(""), "", "");
+  auto graph = &rvsdgModule->Rvsdg();
+
+  {
+    // Create a function to contain the test
+    auto functionType =
+        jlm::rvsdg::FunctionType::Create({ PointerType::Create(), IOStateType::Create() }, {});
+
+    auto lambda = jlm::rvsdg::LambdaNode::Create(
+        graph->GetRootRegion(),
+        LlvmLambdaOperation::Create(functionType, "test", Linkage::externalLinkage));
+    auto pointerArgument = lambda->GetFunctionArguments()[0];
+    auto ioStateArgument = lambda->GetFunctionArguments()[1];
+
+    // Create the MemoryHoistBarrier operation
+    jlm::llvm::MemoryHoistBarrierOperation::createNode(
+        *pointerArgument,
+        *ioStateArgument,
+        dereferenceableSize);
+
+    // Finalize the lambda
+    lambda->finalize({});
+
+    // Convert the RVSDG to MLIR
+    std::cout << "Convert to MLIR" << std::endl;
+    jlm::mlir::JlmToMlirConverter mlirgen;
+    auto omega = mlirgen.ConvertModule(*rvsdgModule);
+
+    // Validate the generated MLIR
+    std::cout << "Validate MLIR" << std::endl;
+    auto & omegaRegion = omega.getRegion();
+    EXPECT_EQ(omegaRegion.getBlocks().size(), 1u);
+    auto & omegaBlock = omegaRegion.front();
+    auto & mlirLambda = omegaBlock.front();
+    auto & mlirLambdaRegion = mlirLambda.getRegion(0);
+    auto & mlirLambdaBlock = mlirLambdaRegion.front();
+
+    // The barrier has to be mapped to its own operation, and not to the IO barrier
+    bool foundBarrier = false;
+    for (auto & lambdaOp : mlirLambdaBlock.getOperations())
+    {
+      EXPECT_FALSE(::mlir::isa<::mlir::jlm::IOBarrier>(&lambdaOp));
+
+      if (auto barrier = ::mlir::dyn_cast<::mlir::jlm::MemoryHoistBarrier>(&lambdaOp))
+      {
+        foundBarrier = true;
+
+        // Check that the address and the input I/O state are the operands
+        EXPECT_EQ(barrier->getNumOperands(), 2u);
+        EXPECT_TRUE(::mlir::isa<::mlir::LLVM::LLVMPointerType>(barrier.getAddress().getType()));
+        EXPECT_TRUE(
+            ::mlir::isa<::mlir::rvsdg::IOStateEdgeType>(barrier.getInputIoState().getType()));
+
+        // Check that the result is a pointer
+        EXPECT_TRUE(::mlir::isa<::mlir::LLVM::LLVMPointerType>(barrier.getOutput().getType()));
+
+        // Check that the dereferenceable size is carried by the operation
+        EXPECT_EQ(barrier.getDereferenceableSize(), dereferenceableSize);
+      }
+    }
+    EXPECT_TRUE(foundBarrier);
+
+    // Convert the MLIR to RVSDG and check the result
+    std::cout << "Converting MLIR to RVSDG" << std::endl;
+    std::unique_ptr<mlir::Block> rootBlock = std::make_unique<mlir::Block>();
+    rootBlock->push_back(omega);
+    auto convertedRvsdgModule = jlm::mlir::MlirToJlmConverter::CreateAndConvert(rootBlock);
+    auto region = &convertedRvsdgModule->Rvsdg().GetRootRegion();
+
+    {
+      using namespace jlm::llvm;
+
+      // Direct access to the lambda node
+      EXPECT_EQ(region->numNodes(), 1u);
+      auto & lambdaNode = *region->Nodes().begin();
+      auto lambdaOperation = dynamic_cast<const jlm::rvsdg::LambdaNode *>(&lambdaNode);
+      EXPECT_NE(lambdaOperation, nullptr);
+
+      // Find the barrier in the lambda subregion
+      bool foundBarrierOperation = false;
+      for (auto & node : lambdaOperation->subregion()->Nodes())
+      {
+        auto barrierOp =
+            dynamic_cast<const jlm::llvm::MemoryHoistBarrierOperation *>(&node.GetOperation());
+        if (!barrierOp)
+          continue;
+
+        foundBarrierOperation = true;
+
+        // Check that it has the correct number of inputs and outputs
+        EXPECT_EQ(barrierOp->nresults(), 1u);
+        EXPECT_EQ(barrierOp->narguments(), 2u);
+
+        // Check that the first input is the address and the second is an I/O state
+        EXPECT_TRUE(jlm::rvsdg::is<PointerType>(barrierOp->argument(0)));
+        EXPECT_TRUE(jlm::rvsdg::is<IOStateType>(barrierOp->argument(1)));
+        EXPECT_TRUE(jlm::rvsdg::is<PointerType>(barrierOp->result(0)));
+
+        // Check that the dereferenceable size survived the roundtrip
+        EXPECT_EQ(barrierOp->getDereferenceableSize(), dereferenceableSize);
+      }
+      EXPECT_TRUE(foundBarrierOperation);
+    }
+  }
+}
+
 TEST(JlmToMlirToJlmTests, TestMalloc)
 {
   using namespace jlm::llvm;

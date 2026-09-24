@@ -771,14 +771,16 @@ JlmToMlirConverter::ConvertSimpleNode(
         inputs[0],
         inputs[1]);
   }
-  else if (rvsdg::is<llvm::MemoryHoistBarrierOperation>(operation))
+  else if (auto hoistBarrier = dynamic_cast<const llvm::MemoryHoistBarrierOperation *>(&operation))
   {
-    // FIXME: We would like to map it to its own operation in MLIR
-    MlirOp = Builder_->create<::mlir::jlm::IOBarrier>(
+    // The barrier takes an address and yields the barred address, along with the number of
+    // bytes that the address is known to be dereferenceable over.
+    MlirOp = Builder_->create<::mlir::jlm::MemoryHoistBarrier>(
         Builder_->getUnknownLoc(),
-        ConvertType(*node.output(0)->Type()),
-        inputs[0],
-        inputs[1]);
+        ConvertType(*node.output(0)->Type()), // barred address
+        inputs[0],                            // address
+        inputs[1],                            // input I/O state
+        hoistBarrier->getDereferenceableSize());
   }
   else if (auto op = dynamic_cast<const llvm::GetElementPtrOperation *>(&operation))
   {
